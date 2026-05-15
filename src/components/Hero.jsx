@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import watchImg from '../assets/images/watch.png';
+import benImg from '../assets/images/ben.png';
 
 function Hero({ setView }) {
   return (
@@ -36,8 +36,8 @@ function Hero({ setView }) {
             type: "spring",
             stiffness: 100
           }}
-          src={watchImg}
-          alt="Omnitrix" 
+          src={benImg}
+          alt="Ben 10" 
         />
         <div className="hero-glow"></div>
       </div>

@@ -4,6 +4,9 @@ import jetrayImg from '../assets/images/jetrey.png';
 import bigchillImg from '../assets/images/bigchill.png';
 import chromastoneImg from '../assets/images/chromastone.png';
 import echoechoImg from '../assets/images/echoecho.png';
+import alienxImg from '../assets/images/alienx.png';
+import goopImg from '../assets/images/goop.png';
+import waybigImg from '../assets/images/waybig.png';
 
 export const fallbackAliens = [
   {
@@ -53,5 +56,29 @@ export const fallbackAliens = [
     image_url: echoechoImg,
     power: 'Self-Duplication, Sonokinesis',
     species: 'Sonorosian'
+  },
+  {
+    id: '7',
+    name: 'Alien X',
+    description: 'A Celestialsapien from the Forge of Creation. He is omnipotent and can warp reality, time, and space.',
+    image_url: alienxImg,
+    power: 'Omnipotence, Reality Warping',
+    species: 'Celestialsapien'
+  },
+  {
+    id: '8',
+    name: 'Goop',
+    description: 'A Polymorph from the planet Viscosia. He is a shape-shifting, acidic blob of slime controlled by an anti-gravity projector.',
+    image_url: goopImg,
+    power: 'Shape-shifting, Acid Generation',
+    species: 'Polymorph'
+  },
+  {
+    id: '9',
+    name: 'Way Big',
+    description: 'A To\'kustar created in cosmic storms. He is a massive alien with incredible strength and cosmic ray beams.',
+    image_url: waybigImg,
+    power: 'Super Strength, Cosmic Rays',
+    species: 'To\'kustar'
   }
 ];
