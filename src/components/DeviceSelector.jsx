@@ -1,5 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import ultimatrixOpenImg from '../assets/images/ultimatrixopen.png';
+import ultimatrixImg from '../assets/images/ultimatrix.png';
+import watchImg from '../assets/images/watch.png';
+import watchnImg from '../assets/images/watchn.png';
 
 function DeviceSelector({ type, onTransform, aliens }) {
   const [isActive, setIsActive] = useState(false);
@@ -90,8 +94,8 @@ function DeviceSelector({ type, onTransform, aliens }) {
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.9 }}
           src={isUltimatrix
-            ? (isActive ? "/src/assets/images/ultimatrixopen.png" : "/src/assets/images/ultimatrix.png")
-            : (isActive ? "/src/assets/images/watch.png" : "/src/assets/images/watchn.png")
+            ? (isActive ? ultimatrixOpenImg : ultimatrixImg)
+            : (isActive ? watchImg : watchnImg)
           }
           className={`watch-omni ${isActive ? 'active' : ''}`}
           alt={type}

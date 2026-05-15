@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import watchnImg from '../assets/images/watchn.png';
 
 function About() {
   return (
@@ -10,7 +11,7 @@ function About() {
         viewport={{ once: true }}
         className="about-image"
       >
-        <img src="/src/assets/images/watchn.png" alt="Omnitrix" />
+        <img src={watchnImg} alt="Omnitrix" />
       </motion.div>
       <motion.div 
         initial={{ opacity: 0, x: 50 }}
