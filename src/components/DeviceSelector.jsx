@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import ultimatrixOpenImg from '../assets/images/ultimatrixopen.png';
 import ultimatrixImg from '../assets/images/ultimatrix.png';
 import watchImg from '../assets/images/watch.png';
@@ -9,6 +10,34 @@ function DeviceSelector({ type, onTransform, aliens }) {
   const [isActive, setIsActive] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isTransforming, setIsTransforming] = useState(false);
+
+  const [touchStart, setTouchStart] = useState(null);
+  const [touchEnd, setTouchEnd] = useState(null);
+
+  const minSwipeDistance = 50;
+
+  const onTouchStart = (e) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const onTouchMove = (e) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const onTouchEndEvent = () => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+
+    if (isLeftSwipe) {
+      setCurrentIndex((prev) => (prev + 1) % displayData.length);
+    }
+    if (isRightSwipe) {
+      setCurrentIndex((prev) => (prev - 1 + displayData.length) % displayData.length);
+    }
+  };
 
   const isUltimatrix = type === 'ultimatrix';
   const displayData = isUltimatrix
@@ -71,7 +100,17 @@ function DeviceSelector({ type, onTransform, aliens }) {
             : (isActive ? `${type.toUpperCase()} ACTIVATED` : `CLICK ${type.toUpperCase()} TO ACTIVATE`)}
       </div>
 
-      <div className="alien-container">
+      <div 
+        className="alien-container"
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEndEvent}
+      >
+        {displayData.length > 0 && isActive && (
+          <button className="mobile-nav-btn left" onClick={(e) => { e.stopPropagation(); setCurrentIndex((prev) => (prev - 1 + displayData.length) % displayData.length); }}>
+            <ChevronLeft size={30} />
+          </button>
+        )}
         <AnimatePresence mode="wait">
           {displayData.length > 0 && isActive && (
             <motion.div
@@ -86,6 +125,11 @@ function DeviceSelector({ type, onTransform, aliens }) {
             </motion.div>
           )}
         </AnimatePresence>
+        {displayData.length > 0 && isActive && (
+          <button className="mobile-nav-btn right" onClick={(e) => { e.stopPropagation(); setCurrentIndex((prev) => (prev + 1) % displayData.length); }}>
+            <ChevronRight size={30} />
+          </button>
+        )}
       </div>
 
       <div className="watch-controls">
