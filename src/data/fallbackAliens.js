@@ -7,6 +7,7 @@ import echoechoImg from '../assets/images/echoecho.png';
 import alienxImg from '../assets/images/alienx.png';
 import goopImg from '../assets/images/goop.png';
 import waybigImg from '../assets/images/waybig.png';
+import spidermonkeyImg from '../assets/images/spm.png';
 
 export const fallbackAliens = [
   {
@@ -80,5 +81,13 @@ export const fallbackAliens = [
     image_url: waybigImg,
     power: 'Super Strength, Cosmic Rays',
     species: 'To\'kustar'
+  },
+  {
+    id: '10',
+    name: 'Spidermonkey',
+    description: 'An Arachnichimp from the planet Aranhaschimmia. He has superhuman agility, wall-crawling, and web-shooting abilities.',
+    image_url: spidermonkeyImg,
+    power: 'Agility, Webbing',
+    species: 'Arachnichimp'
   }
 ];

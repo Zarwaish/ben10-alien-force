@@ -83,7 +83,6 @@ function DeviceSelector({ type, onTransform, aliens }) {
               onClick={() => handleAlienClick(displayData[currentIndex])}
             >
               <img src={displayData[currentIndex]?.image_url || displayData[currentIndex]?.img} alt="Selected Alien" />
-              <h2 className="selection-name">{displayData[currentIndex]?.name}</h2>
             </motion.div>
           )}
         </AnimatePresence>
