@@ -33,10 +33,43 @@ CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
--- Ensure storage policies are correct for 'alien-assets'
--- These should be run manually in the Supabase Dashboard:
--- 1. SELECT: Authenticated/Anon can view all.
--- 2. INSERT/UPDATE/DELETE: Only profiles with role = 'admin' can modify.
+-- ==========================================
+-- STORAGE BUCKET & RLS POLICIES
+-- ==========================================
 
--- Add policy for profiles (if not already there)
--- CREATE POLICY "Users can update own profile" ON profiles FOR UPDATE USING (auth.uid() = id);
+-- Insert the bucket if it doesn't exist
+INSERT INTO storage.buckets (id, name, public) 
+VALUES ('alien-assets', 'alien-assets', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- Enable RLS on the storage.objects table
+ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
+
+-- Policy: Anyone can view images (Public read access)
+CREATE POLICY "Public Access" 
+ON storage.objects FOR SELECT 
+USING (bucket_id = 'alien-assets');
+
+-- Policy: Authenticated users can upload images
+CREATE POLICY "Authenticated users can upload" 
+ON storage.objects FOR INSERT 
+TO authenticated 
+WITH CHECK (bucket_id = 'alien-assets');
+
+-- Policy: Users can update their own uploads
+CREATE POLICY "Users can update own uploads" 
+ON storage.objects FOR UPDATE 
+TO authenticated 
+USING (bucket_id = 'alien-assets' AND auth.uid() = owner);
+
+-- Policy: Users can delete their own uploads
+CREATE POLICY "Users can delete own uploads" 
+ON storage.objects FOR DELETE 
+TO authenticated 
+USING (bucket_id = 'alien-assets' AND auth.uid() = owner);
+
+-- Add policy for profiles
+CREATE POLICY "Users can update own profile" 
+ON profiles FOR UPDATE 
+TO authenticated 
+USING (auth.uid() = id);

@@ -8,9 +8,15 @@ export const storageService = {
 
     const { error: uploadError } = await supabase.storage
       .from('alien-assets')
-      .upload(filePath, file);
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: false
+      });
 
-    if (uploadError) throw uploadError;
+    if (uploadError) {
+      console.error('Upload Error Details:', uploadError);
+      throw uploadError;
+    }
 
     const { data } = supabase.storage
       .from('alien-assets')
