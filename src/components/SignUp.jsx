@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { supabase } from '../lib/supabase';
+import { useAuth } from '../hooks/useAuth';
 import { toast } from 'react-hot-toast';
 import { User, Mail, Lock, ShieldPlus } from 'lucide-react';
 
 function SignUp({ setView }) {
+  const { signup } = useAuth();
   const [formData, setFormData] = useState({
     username: '',
     email: '',
@@ -16,25 +17,7 @@ function SignUp({ setView }) {
     setLoading(true);
 
     try {
-      const { data, error } = await supabase.auth.signUp({
-        email: formData.email,
-        password: formData.password,
-        options: {
-          data: {
-            username: formData.username,
-          }
-        }
-      });
-
-      if (error) throw error;
-
-      // Create profile record (though ideally handled by a DB trigger)
-      if (data.user) {
-        await supabase.from('profiles').insert([
-          { id: data.user.id, username: formData.username, role: 'user' }
-        ]);
-      }
-
+      await signup(formData.email, formData.password, formData.username);
       toast.success('Access Request Sent. Please verify your email.');
       setView('login');
     } catch (error) {
@@ -100,6 +83,7 @@ function SignUp({ setView }) {
                 type="password" 
                 placeholder="••••••••" 
                 required 
+                minLength={6}
                 value={formData.password}
                 onChange={(e) => setFormData({...formData, password: e.target.value})}
               />

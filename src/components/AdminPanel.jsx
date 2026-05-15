@@ -17,8 +17,9 @@ import {
   AlertTriangle,
   CheckCircle2,
   X,
-  ChevronRight,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Loader2,
+  ExternalLink
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { storageService } from '../services/storageService';
@@ -41,6 +42,7 @@ function AdminPanel({ aliens, onAddAlien, onDeleteAlien, onUpdateAlien, onLogout
   });
 
   const fileInputRef = useRef(null);
+  const galleryInputRef = useRef(null);
 
   const stats = [
     { label: 'DNA SAMPLES', value: aliens.length, icon: <Database size={20} />, color: 'var(--primary)' },
@@ -60,9 +62,9 @@ function AdminPanel({ aliens, onAddAlien, onDeleteAlien, onUpdateAlien, onLogout
       setFormData({
         name: alien.name,
         type: alien.type || 'Classic',
-        description: alien.description || alien.desc || '',
+        description: alien.description || '',
         power: alien.power || '',
-        image_url: alien.image_url || alien.img || '',
+        image_url: alien.image_url || '',
         gallery: alien.gallery || []
       });
     } else {
@@ -87,18 +89,45 @@ function AdminPanel({ aliens, onAddAlien, onDeleteAlien, onUpdateAlien, onLogout
       setUploading(true);
       const url = await storageService.uploadImage(file, 'aliens');
       setFormData({ ...formData, image_url: url });
-      toast.success('Image uploaded successfully');
+      toast.success('Main image uploaded');
     } catch (err) {
       console.error(err);
-      toast.error('Failed to upload image');
+      toast.error('Upload failed');
     } finally {
       setUploading(false);
     }
   };
 
+  const handleGalleryUpload = async (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+
+    try {
+      setUploading(true);
+      const uploadPromises = files.map(file => storageService.uploadImage(file, 'gallery'));
+      const urls = await Promise.all(uploadPromises);
+      setFormData({ ...formData, gallery: [...formData.gallery, ...urls] });
+      toast.success(`${urls.length} images added to gallery`);
+    } catch (err) {
+      console.error(err);
+      toast.error('Gallery upload failed');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const removeGalleryImage = (index) => {
+    const newGallery = [...formData.gallery];
+    newGallery.splice(index, 1);
+    setFormData({ ...formData, gallery: newGallery });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!formData.image_url) return toast.error('Please upload a main image');
+    
     try {
+      setUploading(true);
       if (editingAlien) {
         await onUpdateAlien(editingAlien.id, formData);
       } else {
@@ -107,12 +136,19 @@ function AdminPanel({ aliens, onAddAlien, onDeleteAlien, onUpdateAlien, onLogout
       setIsModalOpen(false);
     } catch (err) {
       console.error(err);
+      toast.error('Database sync failed');
+    } finally {
+      setUploading(false);
     }
   };
 
   const handleDelete = async (id, name) => {
-    if (window.confirm(`Are you sure you want to delete ${name}?`)) {
-      await onDeleteAlien(id);
+    if (window.confirm(`Permanently remove ${name} from archive?`)) {
+      try {
+        await onDeleteAlien(id);
+      } catch (err) {
+        toast.error('Deletetion failed');
+      }
     }
   };
 
@@ -131,37 +167,17 @@ function AdminPanel({ aliens, onAddAlien, onDeleteAlien, onUpdateAlien, onLogout
         </div>
 
         <nav className="sidebar-nav">
-          <button 
-            className={activeTab === 'dashboard' ? 'active' : ''} 
-            onClick={() => setActiveTab('dashboard')}
-          >
+          <button className={activeTab === 'dashboard' ? 'active' : ''} onClick={() => setActiveTab('dashboard')}>
             <LayoutDashboard size={20} />
-            <span>Dashboard</span>
-            {activeTab === 'dashboard' && <motion.div layoutId="nav-pill" className="active-pill" />}
+            <span>Operations Hub</span>
           </button>
-          <button 
-            className={activeTab === 'aliens' ? 'active' : ''} 
-            onClick={() => setActiveTab('aliens')}
-          >
+          <button className={activeTab === 'aliens' ? 'active' : ''} onClick={() => setActiveTab('aliens')}>
             <Database size={20} />
             <span>DNA Archive</span>
-            {activeTab === 'aliens' && <motion.div layoutId="nav-pill" className="active-pill" />}
           </button>
-          <button 
-            className={activeTab === 'users' ? 'active' : ''} 
-            onClick={() => setActiveTab('users')}
-          >
-            <Users size={20} />
-            <span>Agent Roster</span>
-            {activeTab === 'users' && <motion.div layoutId="nav-pill" className="active-pill" />}
-          </button>
-          <button 
-            className={activeTab === 'terminal' ? 'active' : ''} 
-            onClick={() => setActiveTab('terminal')}
-          >
+          <button className={activeTab === 'terminal' ? 'active' : ''} onClick={() => setActiveTab('terminal')}>
             <Terminal size={20} />
-            <span>Terminal</span>
-            {activeTab === 'terminal' && <motion.div layoutId="nav-pill" className="active-pill" />}
+            <span>System Log</span>
           </button>
         </nav>
 
@@ -176,19 +192,14 @@ function AdminPanel({ aliens, onAddAlien, onDeleteAlien, onUpdateAlien, onLogout
       {/* Main Content */}
       <main className="admin-main-v2">
         <header className="admin-topbar">
-          <div className="topbar-left">
-            <h2 className="page-title">
-              {activeTab === 'dashboard' && 'Operations Hub'}
-              {activeTab === 'aliens' && 'DNA Archive Management'}
-              {activeTab === 'users' && 'Authorized Personnel'}
-              {activeTab === 'terminal' && 'System Console'}
-            </h2>
-          </div>
-          <div className="topbar-right">
-            <div className="system-status">
-              <span className="pulse"></span>
-              SYSTEM ONLINE
-            </div>
+          <h2 className="page-title">
+            {activeTab === 'dashboard' && 'Operations Hub'}
+            {activeTab === 'aliens' && 'DNA Archive Management'}
+            {activeTab === 'terminal' && 'System Console'}
+          </h2>
+          <div className="system-status">
+            <span className="pulse"></span>
+            CONNECTED
           </div>
         </header>
 
@@ -197,16 +208,8 @@ function AdminPanel({ aliens, onAddAlien, onDeleteAlien, onUpdateAlien, onLogout
             <div className="dashboard-v2">
               <div className="stats-grid-v2">
                 {stats.map((stat, idx) => (
-                  <motion.div 
-                    key={idx}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: idx * 0.1 }}
-                    className="stat-card-v2"
-                  >
-                    <div className="stat-icon-v2" style={{ color: stat.color, background: `${stat.color}15` }}>
-                      {stat.icon}
-                    </div>
+                  <motion.div key={idx} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="stat-card-v2">
+                    <div className="stat-icon-v2" style={{ color: stat.color, background: `${stat.color}15` }}>{stat.icon}</div>
                     <div className="stat-info-v2">
                       <span className="stat-label-v2">{stat.label}</span>
                       <span className="stat-value-v2">{stat.value}</span>
@@ -215,45 +218,16 @@ function AdminPanel({ aliens, onAddAlien, onDeleteAlien, onUpdateAlien, onLogout
                 ))}
               </div>
 
-              <div className="dashboard-grid">
-                <div className="activity-card">
-                  <h3>Recent System Activity</h3>
-                  <div className="activity-timeline">
-                    <div className="timeline-item success">
-                      <CheckCircle2 size={16} />
-                      <div className="timeline-text">
-                        <p>DNA Sequence <strong>Big Chill</strong> verified</p>
-                        <span>2 mins ago</span>
-                      </div>
-                    </div>
-                    <div className="timeline-item info">
-                      <Activity size={16} />
-                      <div className="timeline-text">
-                        <p>Database synchronization complete</p>
-                        <span>15 mins ago</span>
-                      </div>
-                    </div>
-                    <div className="timeline-item warning">
-                      <AlertTriangle size={16} />
-                      <div className="timeline-text">
-                        <p>Unauthorized access attempt blocked</p>
-                        <span>1 hour ago</span>
-                      </div>
-                    </div>
+              <div className="activity-card">
+                <h3>System Integrity Logs</h3>
+                <div className="activity-timeline">
+                  <div className="timeline-item success">
+                    <CheckCircle2 size={16} />
+                    <div className="timeline-text"><p>Database synchronization active</p><span>Just now</span></div>
                   </div>
-                </div>
-
-                <div className="quick-actions-card">
-                  <h3>Quick Protocol</h3>
-                  <div className="action-buttons">
-                    <button onClick={() => handleOpenModal()}>
-                      <Plus size={18} />
-                      Add New DNA Sample
-                    </button>
-                    <button className="secondary">
-                      <Search size={18} />
-                      Scan for Anomalies
-                    </button>
+                  <div className="timeline-item info">
+                    <Activity size={16} />
+                    <div className="timeline-text"><p>{aliens.length} alien samples verified</p><span>5 mins ago</span></div>
                   </div>
                 </div>
               </div>
@@ -265,16 +239,11 @@ function AdminPanel({ aliens, onAddAlien, onDeleteAlien, onUpdateAlien, onLogout
               <div className="table-header-v2">
                 <div className="search-box-v2">
                   <Search size={18} />
-                  <input 
-                    type="text" 
-                    placeholder="Search DNA archive..." 
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
+                  <input type="text" placeholder="Search archive..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                 </div>
                 <button className="add-btn-v2" onClick={() => handleOpenModal()}>
                   <Plus size={18} />
-                  <span>NEW SAMPLE</span>
+                  <span>ADD SAMPLE</span>
                 </button>
               </div>
 
@@ -282,48 +251,27 @@ function AdminPanel({ aliens, onAddAlien, onDeleteAlien, onUpdateAlien, onLogout
                 <table className="admin-table-v2">
                   <thead>
                     <tr>
-                      <th>Sample</th>
-                      <th>Species Name</th>
+                      <th>Preview</th>
+                      <th>Species</th>
                       <th>Classification</th>
-                      <th>Status</th>
+                      <th>Power Level</th>
                       <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredAliens.map((alien, idx) => (
-                      <motion.tr 
-                        key={alien.id || alien.name}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ delay: idx * 0.05 }}
-                      >
-                        <td>
-                          <div className="sample-preview">
-                            <img src={alien.image_url || alien.img} alt={alien.name} />
-                          </div>
-                        </td>
-                        <td>
-                          <div className="species-info">
-                            <span className="species-name">{alien.name}</span>
-                          </div>
-                        </td>
-                        <td>
-                          <span className="classification-tag">{alien.type || 'Classic'}</span>
-                        </td>
-                        <td>
-                          <span className="status-badge stable">Stable</span>
-                        </td>
+                    {filteredAliens.map((alien) => (
+                      <tr key={alien.id}>
+                        <td><img src={alien.image_url} alt="" className="table-img" /></td>
+                        <td className="font-bold">{alien.name}</td>
+                        <td><span className="tag">{alien.type}</span></td>
+                        <td><div className="power-bar"><div className="bar-fill" style={{width: '80%'}}></div></div></td>
                         <td>
                           <div className="action-group">
-                            <button className="icon-btn edit" onClick={() => handleOpenModal(alien)}>
-                              <Edit3 size={16} />
-                            </button>
-                            <button className="icon-btn delete" onClick={() => handleDelete(alien.id, alien.name)}>
-                              <Trash2 size={16} />
-                            </button>
+                            <button className="icon-btn edit" onClick={() => handleOpenModal(alien)}><Edit3 size={16} /></button>
+                            <button className="icon-btn delete" onClick={() => handleDelete(alien.id, alien.name)}><Trash2 size={16} /></button>
                           </div>
                         </td>
-                      </motion.tr>
+                      </tr>
                     ))}
                   </tbody>
                 </table>
@@ -334,20 +282,11 @@ function AdminPanel({ aliens, onAddAlien, onDeleteAlien, onUpdateAlien, onLogout
           {activeTab === 'terminal' && (
             <div className="terminal-v2">
               <div className="terminal-body">
-                <div className="terminal-line"><span>[SYS]</span> Booting Plumber Command Interface...</div>
-                <div className="terminal-line"><span>[SYS]</span> DNA Database: ONLINE</div>
-                <div className="terminal-line"><span>[SYS]</span> Storage Bucket: alien-assets/ CONNECTED</div>
-                <div className="terminal-line"><span>[USER]</span> Admin access granted.</div>
-                <div className="terminal-line prompt">_</div>
+                <p><span>[SYS]</span> Storage Bucket: alien-assets/ CONNECTED</p>
+                <p><span>[SYS]</span> DNA Database: ONLINE</p>
+                <p><span>[USER]</span> Admin access verified.</p>
+                <p className="prompt">_</p>
               </div>
-            </div>
-          )}
-
-          {activeTab === 'users' && (
-            <div className="users-placeholder-v2">
-              <Shield size={48} color="var(--primary)" />
-              <h3>Personnel Database restricted.</h3>
-              <p>Only Level 10 Agents can access the full agent roster.</p>
             </div>
           )}
         </div>
@@ -357,63 +296,29 @@ function AdminPanel({ aliens, onAddAlien, onDeleteAlien, onUpdateAlien, onLogout
       <AnimatePresence>
         {isModalOpen && (
           <div className="modal-overlay-v2">
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="modal-v2"
-            >
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="modal-v2">
               <div className="modal-header-v2">
-                <h3>{editingAlien ? 'Modify DNA Sample' : 'Archive New DNA'}</h3>
-                <button className="close-btn-v2" onClick={() => setIsModalOpen(false)}>
-                  <X size={20} />
-                </button>
+                <h3>{editingAlien ? 'Update Genetic Archive' : 'Initialize New DNA Sample'}</h3>
+                <button onClick={() => setIsModalOpen(false)}><X size={20} /></button>
               </div>
 
               <form onSubmit={handleSubmit} className="modal-form-v2">
-                <div className="form-split">
-                  <div className="form-left">
-                    <div className="image-upload-zone" onClick={() => fileInputRef.current.click()}>
-                      {uploading ? (
-                        <div className="upload-loader">
-                          <Activity className="spin" size={32} />
-                          <span>Uploading...</span>
-                        </div>
-                      ) : formData.image_url ? (
-                        <img src={formData.image_url} alt="Preview" />
-                      ) : (
-                        <div className="upload-placeholder">
-                          <Upload size={32} />
-                          <span>Upload Sample Image</span>
-                        </div>
-                      )}
-                      <input 
-                        type="file" 
-                        hidden 
-                        ref={fileInputRef} 
-                        onChange={handleImageUpload}
-                        accept="image/*"
-                      />
+                <div className="form-grid">
+                  <div className="upload-section">
+                    <div className="main-upload" onClick={() => fileInputRef.current.click()}>
+                      {formData.image_url ? <img src={formData.image_url} alt="Main" /> : <div className="upload-placeholder"><Upload size={32} /><p>Upload DNA Image</p></div>}
+                      <input type="file" hidden ref={fileInputRef} onChange={handleImageUpload} accept="image/*" />
                     </div>
                   </div>
 
-                  <div className="form-right">
+                  <div className="inputs-section">
                     <div className="form-group-v2">
                       <label>Species Name</label>
-                      <input 
-                        type="text" 
-                        placeholder="e.g. Swampfire" 
-                        required
-                        value={formData.name}
-                        onChange={(e) => setFormData({...formData, name: e.target.value})}
-                      />
+                      <input type="text" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} required />
                     </div>
                     <div className="form-group-v2">
                       <label>Classification</label>
-                      <select 
-                        value={formData.type}
-                        onChange={(e) => setFormData({...formData, type: e.target.value})}
-                      >
+                      <select value={formData.type} onChange={(e) => setFormData({...formData, type: e.target.value})}>
                         <option value="Classic">Classic</option>
                         <option value="Ultimate">Ultimate</option>
                         <option value="Fusion">Fusion</option>
@@ -424,29 +329,34 @@ function AdminPanel({ aliens, onAddAlien, onDeleteAlien, onUpdateAlien, onLogout
 
                 <div className="form-group-v2">
                   <label>Genetic Description</label>
-                  <textarea 
-                    placeholder="Describe the alien's abilities and origin..." 
-                    rows="4"
-                    required
-                    value={formData.description}
-                    onChange={(e) => setFormData({...formData, description: e.target.value})}
-                  />
+                  <textarea rows="3" value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} required />
                 </div>
 
                 <div className="form-group-v2">
-                  <label>Primary Power Signature</label>
-                  <input 
-                    type="text" 
-                    placeholder="e.g. Pyrokinesis, Chlorokinesis" 
-                    value={formData.power}
-                    onChange={(e) => setFormData({...formData, power: e.target.value})}
-                  />
+                  <label>Power Signatures</label>
+                  <input type="text" value={formData.power} onChange={(e) => setFormData({...formData, power: e.target.value})} placeholder="e.g. Pyrokinesis, Flight" />
+                </div>
+
+                <div className="gallery-section">
+                  <label>Sample Gallery</label>
+                  <div className="gallery-grid">
+                    {formData.gallery.map((url, i) => (
+                      <div key={i} className="gallery-item">
+                        <img src={url} alt="" />
+                        <button type="button" onClick={() => removeGalleryImage(i)}><X size={12} /></button>
+                      </div>
+                    ))}
+                    <button type="button" className="gallery-add" onClick={() => galleryInputRef.current.click()}>
+                      <Plus size={20} />
+                    </button>
+                    <input type="file" hidden multiple ref={galleryInputRef} onChange={handleGalleryUpload} accept="image/*" />
+                  </div>
                 </div>
 
                 <div className="modal-footer-v2">
-                  <button type="button" className="cancel-btn-v2" onClick={() => setIsModalOpen(false)}>Cancel</button>
+                  <button type="button" className="cancel-btn-v2" onClick={() => setIsModalOpen(false)}>Abort</button>
                   <button type="submit" className="submit-btn-v2" disabled={uploading}>
-                    {editingAlien ? 'Sync Updates' : 'Initialize DNA'}
+                    {uploading ? <Loader2 className="spin" size={20} /> : (editingAlien ? 'Update Archive' : 'Confirm DNA')}
                   </button>
                 </div>
               </form>
@@ -459,3 +369,4 @@ function AdminPanel({ aliens, onAddAlien, onDeleteAlien, onUpdateAlien, onLogout
 }
 
 export default AdminPanel;
+

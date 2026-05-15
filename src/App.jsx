@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Toaster } from 'react-hot-toast';
 import './styles/App.css';
 
 // Components
@@ -13,17 +12,17 @@ import SignUp from './components/SignUp';
 import Login from './components/Login';
 import AdminPanel from './components/AdminPanel';
 import DeviceSelector from './components/DeviceSelector';
+import UserProfile from './components/UserProfile';
 
 // Hooks & Services
 import { useAliens } from './hooks/useAliens';
-import { supabase } from './lib/supabase';
+import { useAuth } from './hooks/useAuth';
 
 function App() {
   const [view, setView] = useState('home');
   const [selectedAlien, setSelectedAlien] = useState(null);
-  const [currentUser, setCurrentUser] = useState(null);
-  const [sessionLoading, setSessionLoading] = useState(true);
   
+  const { user, profile, loading: authLoading, isAdmin, logout } = useAuth();
   const { 
     aliens, 
     loading: aliensLoading, 
@@ -31,57 +30,6 @@ function App() {
     updateAlien, 
     deleteAlien 
   } = useAliens();
-
-  // Handle Supabase Auth Session
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        fetchProfile(session.user);
-      } else {
-        setSessionLoading(false);
-      }
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) {
-        fetchProfile(session.user);
-      } else {
-        setCurrentUser(null);
-        setSessionLoading(false);
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const fetchProfile = async (user) => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-
-      if (error && error.code !== 'PGRST116') throw error;
-
-      if (data) {
-        setCurrentUser({ ...user, ...data });
-      } else {
-        // Fallback for users without profile record
-        setCurrentUser({ ...user, role: 'user', username: user.email.split('@')[0] });
-      }
-    } catch (err) {
-      console.error('Error fetching profile:', err);
-    } finally {
-      setSessionLoading(false);
-    }
-  };
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    setCurrentUser(null);
-    setView('home');
-  };
 
   const handleTransform = (alien) => {
     setSelectedAlien(alien);
@@ -110,26 +58,28 @@ function App() {
         return <SignUp setView={setView} />;
       case 'login':
         return <Login setView={setView} onLoginSuccess={() => setView('home')} />;
+      case 'profile':
+        return <UserProfile />;
       case 'admin':
-        return currentUser?.role === 'admin' ? (
+        return isAdmin ? (
           <AdminPanel 
             aliens={aliens}
             onAddAlien={addAlien}
             onUpdateAlien={updateAlien}
             onDeleteAlien={deleteAlien}
-            onLogout={handleLogout}
+            onLogout={logout}
           />
         ) : (
           <Login setView={setView} onLoginSuccess={() => setView('admin')} />
         );
       case 'alien-detail':
-        return <AlienDetail alien={selectedAlien} onBack={() => setView('omnitrix')} />;
+        return <AlienDetail alien={selectedAlien} onBack={() => setView('home')} />;
       default:
         return <Hero setView={setView} />;
     }
   };
 
-  if (sessionLoading) {
+  if (authLoading) {
     return (
       <div className="global-loader">
         <div className="omnitrix-spinner"></div>
@@ -146,8 +96,8 @@ function App() {
       <Navbar 
         currentView={view} 
         setView={setView} 
-        currentUser={currentUser} 
-        setLogout={handleLogout} 
+        currentUser={profile} 
+        setLogout={logout} 
       />
 
       <AnimatePresence mode="wait">
@@ -158,3 +108,4 @@ function App() {
 }
 
 export default App;
+

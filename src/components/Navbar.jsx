@@ -52,7 +52,13 @@ function Navbar({ currentView, setView, currentUser, setLogout }) {
                 </button>
               )}
               <div className="user-info-v2">
-                <span className="user-name">{currentUser.username}</span>
+                <div 
+                  className={`user-nav-identity ${currentView === 'profile' ? 'active' : ''}`}
+                  onClick={() => handleNavClick('profile')}
+                >
+                  <User size={18} />
+                  <span className="user-name">Hello, {currentUser.username}</span>
+                </div>
                 <button className="logout-icon-btn" onClick={setLogout} title="Logout">
                   <LogOut size={18} />
                 </button>
@@ -99,6 +105,14 @@ function Navbar({ currentView, setView, currentUser, setLogout }) {
                   {item.label}
                 </button>
               ))}
+              {currentUser && (
+                <button
+                  className={`mobile-nav-item ${currentView === 'profile' ? 'active' : ''}`}
+                  onClick={() => handleNavClick('profile')}
+                >
+                  My Profile
+                </button>
+              )}
               {currentUser?.role === 'admin' && (
                 <button
                   className={`mobile-nav-item ${currentView === 'admin' ? 'active' : ''}`}
@@ -113,7 +127,13 @@ function Navbar({ currentView, setView, currentUser, setLogout }) {
               {currentUser ? (
                 <div className="mobile-user-card">
                   <div className="user-details">
-                    <div className="user-avatar-v2">{currentUser.username[0]}</div>
+                    <div className="user-avatar-v2">
+                      {currentUser.avatar_url ? (
+                        <img src={currentUser.avatar_url} alt="Avatar" />
+                      ) : (
+                        currentUser.username[0]
+                      )}
+                    </div>
                     <div className="user-text">
                       <p>{currentUser.username}</p>
                       <span>{currentUser.role.toUpperCase()}</span>
@@ -139,3 +159,4 @@ function Navbar({ currentView, setView, currentUser, setLogout }) {
 }
 
 export default Navbar;
+

@@ -21,20 +21,27 @@ export const supabase = isValidConfig
         onAuthStateChange: () => ({ 
           data: { subscription: { unsubscribe: () => {} } } 
         }),
+        signInWithPassword: () => Promise.resolve({ data: null, error: new Error('Supabase not configured. Add credentials to .env') }),
+        signUp: () => Promise.resolve({ data: null, error: new Error('Supabase not configured. Add credentials to .env') }),
         signOut: () => Promise.resolve(),
       },
-      from: () => ({
-        select: () => ({
-          eq: () => ({
-            single: () => Promise.resolve({ data: null, error: null }),
-            order: () => Promise.resolve({ data: [], error: null }),
-          }),
-          order: () => Promise.resolve({ data: [], error: null }),
-          insert: () => Promise.resolve({ data: [], error: null }),
-          update: () => ({ eq: () => Promise.resolve({ data: [], error: null }) }),
-          delete: () => ({ eq: () => Promise.resolve({ data: null, error: null }) }),
-        }),
-      }),
+      from: () => {
+        const emptyResult = Promise.resolve({ data: [], error: null });
+        const singleResult = Promise.resolve({ data: null, error: null });
+        const chain = {
+          select: () => chain,
+          insert: () => chain,
+          update: () => chain,
+          delete: () => chain,
+          upsert: () => chain,
+          eq: () => chain,
+          neq: () => chain,
+          order: () => emptyResult,
+          single: () => singleResult,
+          then: (resolve) => emptyResult.then(resolve),
+        };
+        return chain;
+      },
       storage: {
         from: () => ({
           upload: () => Promise.resolve({ data: null, error: new Error('Supabase not configured') }),

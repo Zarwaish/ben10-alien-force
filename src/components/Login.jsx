@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { supabase } from '../lib/supabase';
+import { useAuth } from '../hooks/useAuth';
 import { toast } from 'react-hot-toast';
-import { Mail, Lock, LogIn, ShieldCheck } from 'lucide-react';
+import { Mail, Lock, ShieldCheck } from 'lucide-react';
 
 function Login({ setView, onLoginSuccess }) {
+  const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -13,13 +14,7 @@ function Login({ setView, onLoginSuccess }) {
     setLoading(true);
     
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) throw error;
-      
+      await login(email, password);
       toast.success('Access Granted. Welcome back, Agent.');
       if (onLoginSuccess) onLoginSuccess();
     } catch (error) {
