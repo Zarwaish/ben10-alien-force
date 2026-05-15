@@ -1,15 +1,25 @@
 import { supabase } from '../lib/supabase';
+import { fallbackAliens } from '../data/fallbackAliens';
 
 export const alienService = {
   async getAll() {
-    const { data, error } = await supabase
-      .from('aliens')
-      .select('*')
-      .order('created_at', { ascending: true });
-    
-    if (error) throw error;
-    return data;
+    try {
+      const { data, error } = await supabase
+        .from('aliens')
+        .select('*')
+        .order('created_at', { ascending: true });
+      
+      if (error || !data || data.length === 0) {
+        console.log('Using fallback alien data');
+        return fallbackAliens;
+      }
+      return data;
+    } catch (err) {
+      console.warn('Supabase fetch failed, using fallback data:', err);
+      return fallbackAliens;
+    }
   },
+
 
   async getByName(name) {
     const { data, error } = await supabase
