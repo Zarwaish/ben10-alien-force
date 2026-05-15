@@ -1,12 +1,23 @@
 import React from 'react';
+import { motion } from 'framer-motion';
 
 function About() {
   return (
     <section className="about" id="omnitrix">
-      <div className="about-image">
+      <motion.div 
+        initial={{ opacity: 0, x: -50 }}
+        whileInView={{ opacity: 1, x: 0 }}
+        viewport={{ once: true }}
+        className="about-image"
+      >
         <img src="/src/assets/images/watchn.png" alt="Omnitrix" />
-      </div>
-      <div className="about-card">
+      </motion.div>
+      <motion.div 
+        initial={{ opacity: 0, x: 50 }}
+        whileInView={{ opacity: 1, x: 0 }}
+        viewport={{ once: true }}
+        className="about-card"
+      >
         <h2>THE OMNITRIX</h2>
         <p>
           The Omnitrix is the most powerful device in the universe.
@@ -14,7 +25,7 @@ function About() {
           transform into various alien species. In Alien Force, Ben
           commands a recalibrated version with even more lethal potential.
         </p>
-      </div>
+      </motion.div>
     </section>
   );
 }

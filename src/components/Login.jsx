@@ -1,90 +1,91 @@
 import React, { useState } from 'react';
+import { supabase } from '../lib/supabase';
+import { toast } from 'react-hot-toast';
+import { Mail, Lock, LogIn, ShieldCheck } from 'lucide-react';
 
-function Login({ setView, onLogin }) {
-  const [formData, setFormData] = useState({
-    email: '',
-    password: ''
-  });
-  const [isScanning, setIsScanning] = useState(false);
+function Login({ setView, onLoginSuccess }) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    setIsScanning(true);
+    setLoading(true);
+    
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-    // Simulate Auth Scan
-    setTimeout(() => {
-      const success = onLogin(formData.email, formData.password);
-      setIsScanning(false);
-      if (!success) {
-        alert("AUTHENTICATION FAILED: DNA Signature not recognized.");
-      }
-    }, 1500);
+      if (error) throw error;
+      
+      toast.success('Access Granted. Welcome back, Agent.');
+      if (onLoginSuccess) onLoginSuccess();
+    } catch (error) {
+      toast.error(error.message || 'Login failed');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <section className="auth-section">
-      <div className={`omnitrix-bg-effect ${isScanning ? 'scanning-active' : ''}`}>
+      <div className="omnitrix-bg-effect">
         <div className="ring ring-1"></div>
         <div className="ring ring-2"></div>
         <div className="ring ring-3"></div>
         <div className="scan-line"></div>
       </div>
-      
-      <div className={`auth-card ${isScanning ? 'is-scanning' : ''}`}>
+
+      <div className="auth-card">
         <div className="auth-header">
           <div className="auth-icon">
-            <img src="/src/assets/images/watchn.png" alt="Omnitrix" />
+            <ShieldCheck size={48} color="var(--primary)" />
           </div>
-          <h2>ACCESS <span>{isScanning ? 'VERIFYING...' : 'TERMINAL'}</span></h2>
-          <p>{isScanning ? 'Matching DNA sequence...' : 'Verify DNA sequence to unlock archive.'}</p>
+          <h2>AGENT <span>LOGIN</span></h2>
+          <p>Secure connection required</p>
         </div>
-        {!isScanning ? (
-          <form className="auth-form" onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label>CODENAME / EMAIL</label>
-              <div className="input-wrapper">
-                <input 
-                  type="text" 
-                  placeholder="IDENTIFY..." 
-                  required 
-                  value={formData.email}
-                  onChange={(e) => setFormData({...formData, email: e.target.value})}
-                />
-                <div className="input-glow"></div>
-              </div>
+
+        <form className="auth-form" onSubmit={handleLogin}>
+          <div className="form-group">
+            <label>IDENTIFICATION (EMAIL)</label>
+            <div className="input-wrapper">
+              <Mail size={18} className="input-icon" />
+              <input 
+                type="email" 
+                placeholder="Enter your email..." 
+                required 
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+              <div className="input-glow"></div>
             </div>
-            <div className="form-group">
-              <label>SECURITY KEY</label>
-              <div className="input-wrapper">
-                <input 
-                  type="password" 
-                  placeholder="••••••••" 
-                  required 
-                  value={formData.password}
-                  onChange={(e) => setFormData({...formData, password: e.target.value})}
-                />
-                <div className="input-glow"></div>
-              </div>
-            </div>
-            <button type="submit" className="omnitrix-btn">
-              <span>START AUTHENTICATION</span>
-              <div className="btn-glitch"></div>
-            </button>
-            <div className="auth-divider"><span>OR</span></div>
-            <button type="button" className="google-btn" onClick={handleSubmit}>
-              <img src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" alt="Google" />
-              <span>LOGIN WITH GOOGLE</span>
-            </button>
-          </form>
-        ) : (
-          <div className="dna-loader">
-            <div className="dna-strand"></div>
-            <div className="dna-strand"></div>
-            <div className="dna-text">MATCHING GENETIC SIGNATURE...</div>
           </div>
-        )}
+
+          <div className="form-group">
+            <label>DNA KEY (PASSWORD)</label>
+            <div className="input-wrapper">
+              <Lock size={18} className="input-icon" />
+              <input 
+                type="password" 
+                placeholder="••••••••" 
+                required 
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <div className="input-glow"></div>
+            </div>
+          </div>
+
+          <button type="submit" className="omnitrix-btn" disabled={loading}>
+            {loading ? 'VERIFYING...' : 'INITIALIZE SESSION'}
+            {!loading && <div className="btn-glitch"></div>}
+          </button>
+        </form>
+
         <div className="auth-footer">
-          NEW GENETIC SAMPLE? <span onClick={() => setView('signup')}>REGISTER</span>
+          Don't have an account? <span onClick={() => setView('signup')}>Request Access</span>
         </div>
       </div>
     </section>

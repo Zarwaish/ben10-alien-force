@@ -1,60 +1,139 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { Menu, X, Shield, LogOut, User, Settings } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 function Navbar({ currentView, setView, currentUser, setLogout }) {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  const navItems = [
+    { id: 'home', label: 'Home' },
+    { id: 'omnitrix', label: 'Omnitrix' },
+    { id: 'ultimatrix', label: 'Ultimatrix' },
+  ];
+
+  const handleNavClick = (viewId) => {
+    setView(viewId);
+    setIsMenuOpen(false);
+  };
+
   return (
-    <nav>
-      <div className="logo" onClick={() => setView('home')}>BEN 10</div>
-      <div className="nav-links">
-        <button
-          className={currentView === 'home' ? 'active' : ''}
-          onClick={() => setView('home')}
-        >
-          Home
-        </button>
-        <button
-          className={currentView === 'omnitrix' ? 'active' : ''}
-          onClick={() => setView('omnitrix')}
-        >
-          Omnitrix
-        </button>
-        <button
-          className={currentView === 'ultimatrix' ? 'active' : ''}
-          onClick={() => setView('ultimatrix')}
-        >
-          Ultimatrix
-        </button>
-        <div className="auth-btns">
-          {currentUser && currentUser.role === 'admin' && (
+    <nav className="navbar-v2">
+      <div className="nav-container">
+        <div className="nav-left">
+          <div className="logo-v2" onClick={() => handleNavClick('home')}>
+            <Shield size={28} color="var(--primary)" />
+            <span>BEN 10</span>
+          </div>
+        </div>
+
+        <div className="nav-center desktop-only">
+          {navItems.map((item) => (
             <button
-              className={`admin-nav-btn ${currentView === 'admin' ? 'active' : ''}`}
-              onClick={() => setView('admin')}
+              key={item.id}
+              className={`nav-item ${currentView === item.id ? 'active' : ''}`}
+              onClick={() => handleNavClick(item.id)}
             >
-              Admin
+              {item.label}
+              {currentView === item.id && <motion.div layoutId="nav-underline" className="nav-underline" />}
             </button>
-          )}
+          ))}
+        </div>
+
+        <div className="nav-right desktop-only">
           {currentUser ? (
-            <div className="user-nav-info">
-              <span className="user-welcome">HI, {currentUser.username.toUpperCase()}</span>
-              <button className="logout-nav-btn" onClick={setLogout}>LOGOUT</button>
+            <div className="user-profile-nav">
+              {currentUser.role === 'admin' && (
+                <button 
+                  className={`admin-pill ${currentView === 'admin' ? 'active' : ''}`}
+                  onClick={() => handleNavClick('admin')}
+                >
+                  <Settings size={14} />
+                  ADMIN
+                </button>
+              )}
+              <div className="user-info-v2">
+                <span className="user-name">{currentUser.username}</span>
+                <button className="logout-icon-btn" onClick={setLogout} title="Logout">
+                  <LogOut size={18} />
+                </button>
+              </div>
             </div>
           ) : (
-            <>
-              <button
-                className={`login-nav-btn ${currentView === 'login' ? 'active' : ''}`}
-                onClick={() => setView('login')}
-              >
-                Login
-              </button>
-              <button
-                className={`signup-nav-btn ${currentView === 'signup' ? 'active' : ''}`}
-                onClick={() => setView('signup')}
-              >
-                Sign Up
-              </button>
-            </>
+            <div className="auth-group">
+              <button className="login-link" onClick={() => handleNavClick('login')}>Login</button>
+              <button className="signup-btn" onClick={() => handleNavClick('signup')}>Sign Up</button>
+            </div>
           )}
         </div>
+
+        <div className="mobile-toggle" onClick={() => setIsMenuOpen(!isMenuOpen)}>
+          {isMenuOpen ? <X size={28} /> : <Menu size={28} />}
+        </div>
       </div>
+
+      {/* Mobile Menu */}
+      <AnimatePresence>
+        {isMenuOpen && (
+          <motion.div 
+            initial={{ x: '100%' }}
+            animate={{ x: 0 }}
+            exit={{ x: '100%' }}
+            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            className="mobile-menu"
+          >
+            <div className="mobile-menu-header">
+              <div className="logo-v2">
+                <Shield size={28} color="var(--primary)" />
+                <span>BEN 10</span>
+              </div>
+              <button onClick={() => setIsMenuOpen(false)}><X size={28} /></button>
+            </div>
+
+            <div className="mobile-nav-links">
+              {navItems.map((item) => (
+                <button
+                  key={item.id}
+                  className={`mobile-nav-item ${currentView === item.id ? 'active' : ''}`}
+                  onClick={() => handleNavClick(item.id)}
+                >
+                  {item.label}
+                </button>
+              ))}
+              {currentUser?.role === 'admin' && (
+                <button
+                  className={`mobile-nav-item ${currentView === 'admin' ? 'active' : ''}`}
+                  onClick={() => handleNavClick('admin')}
+                >
+                  Admin Panel
+                </button>
+              )}
+            </div>
+
+            <div className="mobile-menu-footer">
+              {currentUser ? (
+                <div className="mobile-user-card">
+                  <div className="user-details">
+                    <div className="user-avatar-v2">{currentUser.username[0]}</div>
+                    <div className="user-text">
+                      <p>{currentUser.username}</p>
+                      <span>{currentUser.role.toUpperCase()}</span>
+                    </div>
+                  </div>
+                  <button className="mobile-logout-btn" onClick={setLogout}>
+                    <LogOut size={18} />
+                    LOGOUT
+                  </button>
+                </div>
+              ) : (
+                <div className="mobile-auth-btns">
+                  <button className="mobile-login-btn" onClick={() => handleNavClick('login')}>LOGIN</button>
+                  <button className="mobile-signup-btn" onClick={() => handleNavClick('signup')}>SIGN UP</button>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </nav>
   );
 }

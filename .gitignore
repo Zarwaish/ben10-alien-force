@@ -7,3 +7,6 @@ dist/
 *.log
 temp/
 cache/
+.env
+.env.local
+.env.*.local

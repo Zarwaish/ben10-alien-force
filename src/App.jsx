@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Toaster } from 'react-hot-toast';
 import './styles/App.css';
 
 // Components
@@ -12,76 +14,71 @@ import Login from './components/Login';
 import AdminPanel from './components/AdminPanel';
 import DeviceSelector from './components/DeviceSelector';
 
-// Data
-import { aliensData } from './data/aliensData';
+// Hooks & Services
+import { useAliens } from './hooks/useAliens';
+import { supabase } from './lib/supabase';
 
 function App() {
   const [view, setView] = useState('home');
   const [selectedAlien, setSelectedAlien] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [sessionLoading, setSessionLoading] = useState(true);
   
-  // Database Persistence (LocalStorage)
-  const [aliens, setAliens] = useState(() => {
-    const savedAliens = localStorage.getItem('ben10_aliens');
-    return savedAliens ? JSON.parse(savedAliens) : aliensData;
-  });
+  const { 
+    aliens, 
+    loading: aliensLoading, 
+    addAlien, 
+    updateAlien, 
+    deleteAlien 
+  } = useAliens();
 
-  const [users, setUsers] = useState(() => {
-    const savedUsers = localStorage.getItem('ben10_users');
-    return savedUsers ? JSON.parse(savedUsers) : [
-      { username: 'Ben Tennyson', email: 'ben@plumber.com', password: '123', role: 'user' },
-      { username: 'Gwen Tennyson', email: 'gwen@plumber.com', password: '123', role: 'user' }
-    ];
-  });
-
-  const [currentUser, setCurrentUser] = useState(() => {
-    const savedSession = localStorage.getItem('ben10_session');
-    return savedSession ? JSON.parse(savedSession) : null;
-  });
-
-  // Sync to Database
+  // Handle Supabase Auth Session
   useEffect(() => {
-    localStorage.setItem('ben10_aliens', JSON.stringify(aliens));
-  }, [aliens]);
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        fetchProfile(session.user);
+      } else {
+        setSessionLoading(false);
+      }
+    });
 
-  useEffect(() => {
-    localStorage.setItem('ben10_users', JSON.stringify(users));
-  }, [users]);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        fetchProfile(session.user);
+      } else {
+        setCurrentUser(null);
+        setSessionLoading(false);
+      }
+    });
 
-  useEffect(() => {
-    if (currentUser) {
-      localStorage.setItem('ben10_session', JSON.stringify(currentUser));
-    } else {
-      localStorage.removeItem('ben10_session');
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const fetchProfile = async (user) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (error && error.code !== 'PGRST116') throw error;
+
+      if (data) {
+        setCurrentUser({ ...user, ...data });
+      } else {
+        // Fallback for users without profile record
+        setCurrentUser({ ...user, role: 'user', username: user.email.split('@')[0] });
+      }
+    } catch (err) {
+      console.error('Error fetching profile:', err);
+    } finally {
+      setSessionLoading(false);
     }
-  }, [currentUser]);
-
-  const handleSignUp = (newUser) => {
-    const userWithRole = { ...newUser, role: 'user' };
-    setUsers([...users, userWithRole]);
-    setCurrentUser(userWithRole);
-    setView('home');
   };
 
-  const handleLogin = (email, password) => {
-    // Admin Check
-    if (email === 'dullgamerz321' && password === 'dullgamerz321') {
-      const adminUser = { username: 'Admin', email: 'dullgamerz321', role: 'admin' };
-      setCurrentUser(adminUser);
-      setView('admin');
-      return true;
-    }
-
-    // Regular User Check
-    const user = users.find(u => u.email === email && u.password === password);
-    if (user) {
-      setCurrentUser(user);
-      setView('home');
-      return true;
-    }
-    return false;
-  };
-
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     setCurrentUser(null);
     setView('home');
   };
@@ -91,17 +88,61 @@ function App() {
     setView('alien-detail');
   };
 
-  const handleAddAlien = (newAlien) => {
-    setAliens([...aliens, { ...newAlien, gallery: [newAlien.img] }]);
+  const renderView = () => {
+    switch (view) {
+      case 'home':
+        return (
+          <motion.div 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            exit={{ opacity: 0 }}
+          >
+            <Hero setView={setView} />
+            <About />
+            <AlienShowcase aliens={aliens} loading={aliensLoading} />
+          </motion.div>
+        );
+      case 'omnitrix':
+        return <DeviceSelector key="omnitrix" type="omnitrix" onTransform={handleTransform} aliens={aliens} />;
+      case 'ultimatrix':
+        return <DeviceSelector key="ultimatrix" type="ultimatrix" onTransform={handleTransform} aliens={aliens} />;
+      case 'signup':
+        return <SignUp setView={setView} />;
+      case 'login':
+        return <Login setView={setView} onLoginSuccess={() => setView('home')} />;
+      case 'admin':
+        return currentUser?.role === 'admin' ? (
+          <AdminPanel 
+            aliens={aliens}
+            onAddAlien={addAlien}
+            onUpdateAlien={updateAlien}
+            onDeleteAlien={deleteAlien}
+            onLogout={handleLogout}
+          />
+        ) : (
+          <Login setView={setView} onLoginSuccess={() => setView('admin')} />
+        );
+      case 'alien-detail':
+        return <AlienDetail alien={selectedAlien} onBack={() => setView('omnitrix')} />;
+      default:
+        return <Hero setView={setView} />;
+    }
   };
 
-  const handleDeleteAlien = (name) => {
-    setAliens(aliens.filter(a => a.name !== name));
-  };
+  if (sessionLoading) {
+    return (
+      <div className="global-loader">
+        <div className="omnitrix-spinner"></div>
+        <span>Initializing DNA...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="App">
+      <div className="bg-glow glow-1"></div>
       <div className="bg-glow glow-2"></div>
+      
       <Navbar 
         currentView={view} 
         setView={setView} 
@@ -109,35 +150,9 @@ function App() {
         setLogout={handleLogout} 
       />
 
-      {view === 'home' ? (
-        <>
-          <Hero setView={setView} />
-          <About />
-          <AlienShowcase aliens={aliens} />
-        </>
-      ) : view === 'omnitrix' ? (
-        <DeviceSelector key="omnitrix-selector" type="omnitrix" onTransform={handleTransform} aliens={aliens} />
-      ) : view === 'ultimatrix' ? (
-        <DeviceSelector key="ultimatrix-selector" type="ultimatrix" onTransform={handleTransform} aliens={aliens} />
-      ) : view === 'signup' ? (
-        <SignUp setView={setView} onSignUp={handleSignUp} />
-      ) : view === 'login' ? (
-        <Login setView={setView} onLogin={handleLogin} />
-      ) : view === 'admin' ? (
-        currentUser && currentUser.role === 'admin' ? (
-          <AdminPanel 
-            registeredUsers={users} 
-            aliens={aliens} 
-            onAddAlien={handleAddAlien} 
-            onDeleteAlien={handleDeleteAlien}
-            onLogout={handleLogout} 
-          />
-        ) : (
-          <Login setView={setView} onLogin={handleLogin} />
-        )
-      ) : (
-        <AlienDetail alien={selectedAlien} onBack={() => setView('omnitrix')} />
-      )}
+      <AnimatePresence mode="wait">
+        {renderView()}
+      </AnimatePresence>
     </div>
   );
 }

@@ -1,55 +1,95 @@
 import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
 
 function AlienDetail({ alien, onBack }) {
-  const [currentImgIndex, setCurrentImgIndex] = useState(0);
+  const [activeImgIndex, setActiveImgIndex] = useState(0);
 
   if (!alien) return null;
 
-  const nextImg = () => {
-    setCurrentImgIndex((prev) => (prev + 1) % alien.gallery.length);
-  };
+  const gallery = alien.gallery || [alien.image_url || alien.img];
 
-  const prevImg = () => {
-    setCurrentImgIndex((prev) => (prev - 1 + alien.gallery.length) % alien.gallery.length);
-  };
+  const nextImg = () => setActiveImgIndex((prev) => (prev + 1) % gallery.length);
+  const prevImg = () => setActiveImgIndex((prev) => (prev - 1 + gallery.length) % gallery.length);
 
   return (
-    <section className="alien-detail-view">
-      <div className="back-btn" onClick={onBack}>BACK TO DEVICE</div>
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="alien-detail-view"
+    >
+      <button className="back-btn" onClick={onBack}>
+        <ArrowLeft size={16} />
+        <span>BACK TO SELECTOR</span>
+      </button>
+
       <div className="detail-content">
         <div className="detail-image-container">
-          {alien.gallery && alien.gallery.length > 1 && (
+          <AnimatePresence mode="wait">
+            <motion.img
+              key={activeImgIndex}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              src={gallery[activeImgIndex]}
+              alt={alien.name}
+              className="detail-image"
+            />
+          </AnimatePresence>
+          
+          {gallery.length > 1 && (
             <div className="gallery-controls">
-              <button className="gallery-btn prev" onClick={prevImg}>&lt;</button>
-              <button className="gallery-btn next" onClick={nextImg}>&gt;</button>
+              <button className="gallery-btn" onClick={prevImg}><ChevronLeft /></button>
+              <button className="gallery-btn" onClick={nextImg}><ChevronRight /></button>
             </div>
           )}
-          <img src={alien.gallery ? alien.gallery[currentImgIndex] : alien.img} alt={alien.name} className="detail-image" />
-          <div className="detail-glow"></div>
-          {alien.gallery && alien.gallery.length > 1 && (
-            <div className="gallery-dots">
-              {alien.gallery.map((_, i) => (
-                <div 
-                  key={i} 
-                  className={`dot ${i === currentImgIndex ? 'active' : ''}`}
-                  onClick={() => setCurrentImgIndex(i)}
-                ></div>
-              ))}
-            </div>
-          )}
+
+          <div className="gallery-dots">
+            {gallery.map((_, i) => (
+              <div 
+                key={i} 
+                className={`dot ${i === activeImgIndex ? 'active' : ''}`}
+                onClick={() => setActiveImgIndex(i)}
+              />
+            ))}
+          </div>
         </div>
+
         <div className="detail-info">
-          <h1 className="detail-name">{alien.name}</h1>
+          <motion.h1 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="detail-name"
+          >
+            {alien.name}
+          </motion.h1>
           <div className="detail-divider"></div>
-          <p className="detail-desc">{alien.desc}</p>
+          <motion.p 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="detail-desc"
+          >
+            {alien.description || alien.desc}
+          </motion.p>
+
           <div className="ability-list">
-            <div className="ability-item">ULTIMATE STRENGTH</div>
-            <div className="ability-item">DNA REPLICATION</div>
-            <div className="ability-item">PLANETARY DEFENSE</div>
+            {(alien.power || "Super Strength, Durability").split(',').map((ability, i) => (
+              <motion.div 
+                key={i}
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.2 + (i * 0.1) }}
+                className="ability-item"
+              >
+                {ability.trim().toUpperCase()}
+              </motion.div>
+            ))}
           </div>
         </div>
       </div>
-    </section>
+    </motion.div>
   );
 }
 

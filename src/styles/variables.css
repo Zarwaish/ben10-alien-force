@@ -2,14 +2,36 @@
 
 :root {
     --primary: #00ff00;
-    --primary-glow: rgba(0, 255, 0, 0.6);
+    --primary-dark: #008000;
+    --primary-glow: rgba(0, 255, 0, 0.4);
+    --secondary: #00e5ff;
     --bg-dark: #050505;
+    --bg-darker: #020202;
     --bg-card: rgba(20, 20, 20, 0.7);
+    --bg-glass: rgba(10, 10, 10, 0.6);
     --text-main: #ffffff;
-    --text-muted: #a0a0a0;
-    --glass-border: rgba(255, 255, 255, 0.1);
+    --text-muted: #888888;
+    --glass-border: rgba(255, 255, 255, 0.08);
+    --glass-border-bright: rgba(255, 255, 255, 0.15);
     --font-heading: 'Orbitron', sans-serif;
     --font-body: 'Inter', sans-serif;
+    
+    /* Semantic Colors */
+    --success: #00ff88;
+    --warning: #ffcc00;
+    --danger: #ff4444;
+    --info: #00ccff;
+
+    /* Spacing & Radius */
+    --radius-sm: 8px;
+    --radius-md: 16px;
+    --radius-lg: 24px;
+    --radius-full: 9999px;
+    --spacing-xs: 4px;
+    --spacing-sm: 8px;
+    --spacing-md: 16px;
+    --spacing-lg: 24px;
+    --spacing-xl: 32px;
 }
 
 * {

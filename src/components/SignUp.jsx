@@ -1,103 +1,120 @@
 import React, { useState } from 'react';
+import { supabase } from '../lib/supabase';
+import { toast } from 'react-hot-toast';
+import { User, Mail, Lock, ShieldPlus } from 'lucide-react';
 
-function SignUp({ setView, onSignUp }) {
+function SignUp({ setView }) {
   const [formData, setFormData] = useState({
     username: '',
     email: '',
-    password: ''
+    password: '',
   });
-  const [isScanning, setIsScanning] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSignUp = async (e) => {
     e.preventDefault();
-    setIsScanning(true);
-    
-    // Simulate DNA Scan
-    setTimeout(() => {
-      onSignUp(formData);
-      setIsScanning(false);
-      setView('home');
-      alert("GENETIC MATCH FOUND: Welcome to the DNA Archive!");
-    }, 2000);
+    setLoading(true);
+
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          data: {
+            username: formData.username,
+          }
+        }
+      });
+
+      if (error) throw error;
+
+      // Create profile record (though ideally handled by a DB trigger)
+      if (data.user) {
+        await supabase.from('profiles').insert([
+          { id: data.user.id, username: formData.username, role: 'user' }
+        ]);
+      }
+
+      toast.success('Access Request Sent. Please verify your email.');
+      setView('login');
+    } catch (error) {
+      toast.error(error.message || 'Sign up failed');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <section className="auth-section">
-      <div className={`omnitrix-bg-effect ${isScanning ? 'scanning-active' : ''}`}>
+      <div className="omnitrix-bg-effect">
         <div className="ring ring-1"></div>
         <div className="ring ring-2"></div>
         <div className="ring ring-3"></div>
-        <div className="scan-line"></div>
       </div>
-      
-      <div className={`auth-card ${isScanning ? 'is-scanning' : ''}`}>
+
+      <div className="auth-card">
         <div className="auth-header">
           <div className="auth-icon">
-            <img src="/src/assets/images/watch.png" alt="Omnitrix" />
+            <ShieldPlus size={48} color="var(--primary)" />
           </div>
-          <h2>DNA <span>{isScanning ? 'SCANNING...' : 'REGISTRATION'}</span></h2>
-          <p>{isScanning ? 'Analyzing genetic blueprints...' : 'Scan your genetic signature to proceed.'}</p>
+          <h2>AGENT <span>ENROLLMENT</span></h2>
+          <p>Join the Plumber Academy</p>
         </div>
-        {!isScanning ? (
-          <form className="auth-form" onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label>CODENAME</label>
-              <div className="input-wrapper">
-                <input 
-                  type="text" 
-                  placeholder="HERO ID..." 
-                  required 
-                  value={formData.username}
-                  onChange={(e) => setFormData({...formData, username: e.target.value})}
-                />
-                <div className="input-glow"></div>
-              </div>
+
+        <form className="auth-form" onSubmit={handleSignUp}>
+          <div className="form-group">
+            <label>CODENAME (USERNAME)</label>
+            <div className="input-wrapper">
+              <User size={18} className="input-icon" />
+              <input 
+                type="text" 
+                placeholder="Agent Name..." 
+                required 
+                value={formData.username}
+                onChange={(e) => setFormData({...formData, username: e.target.value})}
+              />
+              <div className="input-glow"></div>
             </div>
-            <div className="form-group">
-              <label>GALACTIC EMAIL</label>
-              <div className="input-wrapper">
-                <input 
-                  type="email" 
-                  placeholder="COMM-CHANNEL..." 
-                  required 
-                  value={formData.email}
-                  onChange={(e) => setFormData({...formData, email: e.target.value})}
-                />
-                <div className="input-glow"></div>
-              </div>
-            </div>
-            <div className="form-group">
-              <label>SECURITY KEY</label>
-              <div className="input-wrapper">
-                <input 
-                  type="password" 
-                  placeholder="••••••••" 
-                  required 
-                  value={formData.password}
-                  onChange={(e) => setFormData({...formData, password: e.target.value})}
-                />
-                <div className="input-glow"></div>
-              </div>
-            </div>
-            <button type="submit" className="omnitrix-btn">
-              <span>INITIALIZE SCAN</span>
-              <div className="btn-glitch"></div>
-            </button>
-            <div className="auth-divider"><span>OR</span></div>
-            <button type="button" className="google-btn" onClick={handleSubmit}>
-              <img src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" alt="Google" />
-              <span>SIGN UP WITH GOOGLE</span>
-            </button>
-          </form>
-        ) : (
-          <div className="dna-loader">
-            <div className="dna-strand"></div>
-            <div className="dna-strand"></div>
-            <div className="dna-text">DNA SEQUENCE: 100,912 SAMPLES CHECKED</div>
           </div>
-        )}
+
+          <div className="form-group">
+            <label>IDENTIFICATION (EMAIL)</label>
+            <div className="input-wrapper">
+              <Mail size={18} className="input-icon" />
+              <input 
+                type="email" 
+                placeholder="academy@plumber.com" 
+                required 
+                value={formData.email}
+                onChange={(e) => setFormData({...formData, email: e.target.value})}
+              />
+              <div className="input-glow"></div>
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label>DNA KEY (PASSWORD)</label>
+            <div className="input-wrapper">
+              <Lock size={18} className="input-icon" />
+              <input 
+                type="password" 
+                placeholder="••••••••" 
+                required 
+                value={formData.password}
+                onChange={(e) => setFormData({...formData, password: e.target.value})}
+              />
+              <div className="input-glow"></div>
+            </div>
+          </div>
+
+          <button type="submit" className="omnitrix-btn" disabled={loading}>
+            {loading ? 'ENROLLING...' : 'INITIALIZE ENROLLMENT'}
+            {!loading && <div className="btn-glitch"></div>}
+          </button>
+        </form>
+
         <div className="auth-footer">
-          ALREADY VERIFIED? <span onClick={() => setView('login')}>LOG IN</span>
+          Already an agent? <span onClick={() => setView('login')}>Terminal Login</span>
         </div>
       </div>
     </section>
