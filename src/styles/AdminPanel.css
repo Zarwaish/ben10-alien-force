@@ -525,7 +525,119 @@
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
 @media (max-width: 768px) {
-    .admin-sidebar-v2 { display: none; }
-    .form-grid { grid-template-columns: 1fr; }
-    .stats-grid-v2 { grid-template-columns: 1fr 1fr; }
+    .admin-container {
+        flex-direction: column;
+        height: auto;
+        min-height: 100vh;
+        overflow: auto;
+    }
+    
+    .admin-sidebar-v2 {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid var(--glass-border);
+        padding: 15px;
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        position: sticky;
+        top: 0;
+        z-index: 1000;
+        background: rgba(10, 10, 10, 0.95);
+    }
+    
+    .sidebar-brand {
+        margin-bottom: 0;
+        padding: 0;
+    }
+    
+    .sidebar-brand .brand-text {
+        display: none;
+    }
+    
+    .sidebar-nav {
+        flex-direction: row;
+        gap: 8px;
+    }
+    
+    .sidebar-nav button {
+        padding: 8px 12px;
+        font-size: 11px;
+        gap: 6px;
+    }
+    
+    .sidebar-nav button span {
+        display: none;
+    }
+
+    @media (min-width: 480px) {
+        .sidebar-nav button span {
+            display: inline;
+        }
+    }
+    
+    .sidebar-footer-v2 {
+        margin-top: 0;
+        padding-top: 0;
+        border-top: none;
+    }
+    
+    .logout-action {
+        padding: 8px;
+        font-size: 11px;
+        width: auto;
+    }
+    
+    .logout-action span {
+        display: none;
+    }
+    
+    .admin-main-v2 {
+        height: auto;
+        overflow: visible;
+    }
+    
+    .admin-topbar {
+        height: 60px;
+        padding: 0 15px;
+    }
+    
+    .page-title {
+        font-size: 15px;
+    }
+    
+    .content-scroll {
+        padding: 15px;
+        overflow: visible;
+    }
+    
+    .stats-grid-v2 {
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+    }
+    
+    .table-header-v2 {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+    }
+    
+    .search-box-v2 {
+        max-width: 100%;
+    }
+    
+    .add-btn-v2 {
+        justify-content: center;
+    }
+    
+    .form-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+    
+    .modal-v2 {
+        max-height: 95vh;
+        width: 95%;
+        margin: auto;
+    }
 }
