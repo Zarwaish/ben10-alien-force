@@ -27,6 +27,7 @@ function App() {
   const { 
     aliens, 
     loading: aliensLoading, 
+    schemaStatus,
     addAlien, 
     updateAlien, 
     deleteAlien 
@@ -81,6 +82,7 @@ function App() {
           <ErrorBoundary>
             <AdminPanel 
               aliens={aliens}
+              schemaStatus={schemaStatus}
               onAddAlien={addAlien}
               onUpdateAlien={updateAlien}
               onDeleteAlien={deleteAlien}

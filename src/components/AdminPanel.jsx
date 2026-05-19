@@ -26,7 +26,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { storageService } from '../services/storageService';
 import { toast } from 'react-hot-toast';
 
-function AdminPanel({ aliens, onAddAlien, onDeleteAlien, onUpdateAlien, onLogout }) {
+function AdminPanel({ aliens, schemaStatus, onAddAlien, onDeleteAlien, onUpdateAlien, onLogout }) {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAlien, setEditingAlien] = useState(null);
@@ -414,6 +414,28 @@ function AdminPanel({ aliens, onAddAlien, onDeleteAlien, onUpdateAlien, onLogout
         </header>
 
         <div className="content-scroll">
+          {(!schemaStatus?.hasWatchColumns || !schemaStatus?.hasGalleryColumn) && (
+            <div style={{
+              background: 'rgba(239, 68, 68, 0.15)',
+              border: '1px solid rgb(239, 68, 68)',
+              borderRadius: '8px',
+              padding: '15px',
+              marginBottom: '20px',
+              color: '#f87171',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              fontSize: '14px',
+              lineHeight: '1.5'
+            }}>
+              <AlertTriangle size={24} style={{ flexShrink: 0 }} />
+              <div>
+                <strong>Supabase Schema Missing Columns!</strong> The database table <code>aliens</code> is missing the <code>watch_type</code>, <code>order_index</code>, or <code>gallery</code> columns. 
+                Please copy the queries in <code>supabase_updates.sql</code> and execute them in your Supabase SQL Editor to resolve filtering and layout anomalies.
+              </div>
+            </div>
+          )}
+
           {activeTab === 'dashboard' && (
             <div className="dashboard-v2">
               <div className="stats-grid-v2">

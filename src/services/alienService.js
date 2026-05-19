@@ -177,5 +177,12 @@ export const alienService = {
       console.error('[alienService.delete] Supabase error:', error);
       await throwFriendly(error, 'delete');
     }
+  },
+
+  getSchemaStatus() {
+    return {
+      hasWatchColumns: _hasWatchColumns,
+      hasGalleryColumn: _hasGalleryColumn
+    };
   }
 };

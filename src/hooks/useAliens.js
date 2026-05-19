@@ -7,18 +7,20 @@ export function useAliens() {
   const [aliens, setAliens] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [schemaStatus, setSchemaStatus] = useState({ hasWatchColumns: true, hasGalleryColumn: true });
 
-  const fetchAliens = async () => {
+  const fetchAliens = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const data = await alienService.getAll();
       setAliens(data);
+      setSchemaStatus(alienService.getSchemaStatus());
     } catch (err) {
       console.error('Error fetching aliens:', err);
       setError(err.message);
       toast.error('Failed to load alien database');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -29,7 +31,7 @@ export function useAliens() {
     const channel = supabase
       .channel('public:aliens')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'aliens' }, (payload) => {
-        fetchAliens(); // Re-fetch the updated list
+        fetchAliens(true); // Re-fetch the updated list silently
       })
       .subscribe();
 
@@ -70,5 +72,5 @@ export function useAliens() {
     }
   };
 
-  return { aliens, loading, error, refresh: fetchAliens, addAlien, updateAlien, deleteAlien };
+  return { aliens, loading, error, schemaStatus, refresh: fetchAliens, addAlien, updateAlien, deleteAlien };
 }
