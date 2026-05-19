@@ -59,12 +59,7 @@ export const AuthProvider = ({ children }) => {
     // Clear out any old fake Google or non-persistent sessions to prevent bypasses
     const localSessionStr = localStorage.getItem('local_session');
     if (localSessionStr) {
-      try {
-        const parsed = JSON.parse(localSessionStr);
-        if (parsed?.user?.email === 'agent.google@plumber.com') {
-          localStorage.removeItem('local_session');
-        }
-      } catch (e) {}
+      localStorage.removeItem('local_session');
     }
 
     // Check active sessions and sets the user
@@ -73,15 +68,10 @@ export const AuthProvider = ({ children }) => {
         setUser(session.user);
         fetchProfile(session.user.id);
       } else {
-        // Fallback to local session if no supabase session is active
+        // Fallback to local admin session ONLY
         const localAdmin = localStorage.getItem('admin_session');
-        const localSession = localStorage.getItem('local_session');
         if (localAdmin) {
           const parsed = JSON.parse(localAdmin);
-          setUser(parsed.user);
-          setProfile(parsed.profile);
-        } else if (localSession) {
-          const parsed = JSON.parse(localSession);
           setUser(parsed.user);
           setProfile(parsed.profile);
         }
@@ -95,15 +85,9 @@ export const AuthProvider = ({ children }) => {
         setUser(session.user);
         await fetchProfile(session.user.id);
       } else {
-        // Fallback to local session if no supabase session is active
         const localAdmin = localStorage.getItem('admin_session');
-        const localSession = localStorage.getItem('local_session');
         if (localAdmin) {
           const parsed = JSON.parse(localAdmin);
-          setUser(parsed.user);
-          setProfile(parsed.profile);
-        } else if (localSession) {
-          const parsed = JSON.parse(localSession);
           setUser(parsed.user);
           setProfile(parsed.profile);
         } else {
@@ -202,15 +186,11 @@ export const AuthProvider = ({ children }) => {
   };
 
   const updateProfile = async (updates) => {
-    if (localStorage.getItem('local_session') || localStorage.getItem('admin_session')) {
-      // Local profile update
+    if (localStorage.getItem('admin_session')) {
+      // Local profile update for admin
       const updatedProfile = { ...profile, ...updates };
       setProfile(updatedProfile);
-      if (localStorage.getItem('admin_session')) {
-        localStorage.setItem('admin_session', JSON.stringify({ user, profile: updatedProfile }));
-      } else {
-        localStorage.setItem('local_session', JSON.stringify({ user: updatedProfile, profile: updatedProfile }));
-      }
+      localStorage.setItem('admin_session', JSON.stringify({ user, profile: updatedProfile }));
       toast.success('Profile updated locally!');
       return updatedProfile;
     }
@@ -227,6 +207,22 @@ export const AuthProvider = ({ children }) => {
     toast.success('Profile updated!');
     return data;
   };
+
+  // Listen for profile deletion to instantly kick users
+  useEffect(() => {
+    if (!user?.id || user.id === 'admin-id') return;
+    
+    const channel = supabase.channel(`public:profiles:delete:${user.id}`)
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'profiles', filter: `id=eq.${user.id}` }, () => {
+        toast.error('Your access has been revoked by an administrator.');
+        logout();
+      })
+      .subscribe();
+      
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
 
   const value = {
     user,

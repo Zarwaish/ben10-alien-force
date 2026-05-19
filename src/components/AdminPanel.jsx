@@ -213,6 +213,28 @@ function AdminPanel({ aliens, onAddAlien, onDeleteAlien, onUpdateAlien, onLogout
     }
   };
 
+  const handleLogout = () => {
+    onLogout();
+  };
+
+  const handleDeleteUser = async (userId) => {
+    if (window.confirm('Are you sure you want to delete this user? Their access will be revoked instantly.')) {
+      try {
+        const { error } = await supabase
+          .from('profiles')
+          .delete()
+          .eq('id', userId);
+        
+        if (error) throw error;
+        toast.success('User deleted successfully.');
+        // Realtime subscription will fetchUsers() and update the list instantly
+      } catch (err) {
+        toast.error('Failed to delete user.');
+        console.error(err);
+      }
+    }
+  };
+
   const renderAlienVaultTable = (watchType) => {
     const isUlt = watchType === 'ultimatrix';
     const isOmni = watchType === 'omnitrix';
@@ -451,6 +473,7 @@ function AdminPanel({ aliens, onAddAlien, onDeleteAlien, onUpdateAlien, onLogout
                       <th>Email Identification</th>
                       <th>Role Command</th>
                       <th>Database ID</th>
+                      <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -464,6 +487,18 @@ function AdminPanel({ aliens, onAddAlien, onDeleteAlien, onUpdateAlien, onLogout
                           </span>
                         </td>
                         <td style={{fontFamily: 'monospace', fontSize: '11px', color: 'var(--text-muted)'}}>{user.id || 'N/A'}</td>
+                        <td>
+                          <div className="action-buttons">
+                            <button 
+                              className="action-btn delete" 
+                              onClick={() => handleDeleteUser(user.id)}
+                              disabled={user.role === 'admin'}
+                              title={user.role === 'admin' ? 'Cannot delete admin' : 'Delete User'}
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
