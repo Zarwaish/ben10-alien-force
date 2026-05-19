@@ -4,6 +4,8 @@ import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
 
 function AlienDetail({ alien, onBack }) {
   const [activeImgIndex, setActiveImgIndex] = useState(0);
+  const [touchStart, setTouchStart] = useState(null);
+  const [touchEnd, setTouchEnd] = useState(null);
 
   if (!alien) return null;
 
@@ -11,6 +13,31 @@ function AlienDetail({ alien, onBack }) {
 
   const nextImg = () => setActiveImgIndex((prev) => (prev + 1) % gallery.length);
   const prevImg = () => setActiveImgIndex((prev) => (prev - 1 + gallery.length) % gallery.length);
+
+  const minSwipeDistance = 50;
+
+  const handleTouchStart = (e) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchMove = (e) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+
+    if (isLeftSwipe) {
+      nextImg();
+    }
+    if (isRightSwipe) {
+      prevImg();
+    }
+  };
 
   return (
     <motion.div 
@@ -23,9 +50,14 @@ function AlienDetail({ alien, onBack }) {
         <ArrowLeft size={16} />
         <span>BACK TO SELECTOR</span>
       </button>
-
+      
       <div className="detail-content">
-        <div className="detail-image-container">
+        <div 
+          className="detail-image-container"
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
           <AnimatePresence mode="wait">
             <motion.img
               key={activeImgIndex}

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { alienService } from '../services/alienService';
 import { toast } from 'react-hot-toast';
+import { fallbackAliens } from '../data/fallbackAliens';
 
 export function useAliens() {
   const [aliens, setAliens] = useState([]);
@@ -11,7 +12,19 @@ export function useAliens() {
     try {
       setLoading(true);
       const data = await alienService.getAll();
-      setAliens(data);
+      const enriched = data.map(dbAlien => {
+        const fallback = fallbackAliens.find(f => 
+          f.name.toLowerCase() === dbAlien.name.toLowerCase() || 
+          String(f.id) === String(dbAlien.id)
+        );
+        return {
+          ...dbAlien,
+          gallery: fallback 
+            ? [dbAlien.image_url || dbAlien.img, ...fallback.gallery.slice(1)]
+            : (dbAlien.gallery || [dbAlien.image_url || dbAlien.img])
+        };
+      });
+      setAliens(enriched);
     } catch (err) {
       console.error('Error fetching aliens:', err);
       setError(err.message);

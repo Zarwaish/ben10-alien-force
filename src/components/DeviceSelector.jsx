@@ -6,6 +6,44 @@ import ultimatrixImg from '../assets/images/ultimatrix.png';
 import watchImg from '../assets/images/watch.png';
 import watchnImg from '../assets/images/watchn.png';
 
+// Import new watch face images
+import omx1 from '../assets/images/omx1.png';
+import omx2 from '../assets/images/omx2.png';
+import omx3 from '../assets/images/omx3.png';
+import omx4 from '../assets/images/omx4.png';
+import omx5 from '../assets/images/omx5.png';
+import omx6 from '../assets/images/omx6.png';
+import omx7 from '../assets/images/omx7.png';
+import omx8 from '../assets/images/omx8.png';
+import omx9 from '../assets/images/omx9.png';
+import omx10 from '../assets/images/omx10.png';
+
+const getOmxImage = (alien, index) => {
+  if (!alien) return omx1;
+  const cleanName = alien.name ? alien.name.replace('Ultimate ', '').toLowerCase().trim() : '';
+  if (cleanName.includes('swampfire')) return omx1;
+  if (cleanName.includes('humungousaur') || cleanName.includes('humangasour')) return omx2;
+  if (cleanName.includes('jetray') || cleanName.includes('jetrey')) return omx3;
+  if (cleanName.includes('big chill') || cleanName.includes('bigchill')) return omx4;
+  if (cleanName.includes('chromastone')) return omx5;
+  if (cleanName.includes('echo echo') || cleanName.includes('echoecho')) return omx6;
+  if (cleanName.includes('alien x') || cleanName.includes('alienx')) return omx7;
+  if (cleanName.includes('goop')) return omx8;
+  if (cleanName.includes('way big') || cleanName.includes('waybig')) return omx9;
+  if (cleanName.includes('spidermonkey') || cleanName.includes('spm')) return omx10;
+  
+  // Fallback by ID
+  const idNum = parseInt(alien.id, 10);
+  if (!isNaN(idNum) && idNum >= 1 && idNum <= 10) {
+    const fallbacks = [omx1, omx2, omx3, omx4, omx5, omx6, omx7, omx8, omx9, omx10];
+    return fallbacks[idNum - 1];
+  }
+  
+  // Fallback by index
+  const fallbacks = [omx1, omx2, omx3, omx4, omx5, omx6, omx7, omx8, omx9, omx10];
+  return fallbacks[index % 10] || omx1;
+};
+
 function DeviceSelector({ type, onTransform, aliens }) {
   const [isActive, setIsActive] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -121,7 +159,7 @@ function DeviceSelector({ type, onTransform, aliens }) {
               className="alien-entry-omni active"
               onClick={() => handleAlienClick(displayData[currentIndex])}
             >
-              <img src={displayData[currentIndex]?.image_url || displayData[currentIndex]?.img} alt="Selected Alien" />
+              <img src={getOmxImage(displayData[currentIndex], currentIndex)} alt="Selected Alien" />
             </motion.div>
           )}
         </AnimatePresence>
