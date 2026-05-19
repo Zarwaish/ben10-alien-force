@@ -47,6 +47,14 @@ export const supabase = isValidConfig
           upload: () => Promise.resolve({ data: null, error: new Error('Supabase not configured') }),
           getPublicUrl: () => ({ data: { publicUrl: '' } }),
         })
-      }
+      },
+      channel: () => {
+        const mockChannel = {
+          on: () => mockChannel,
+          subscribe: () => mockChannel
+        };
+        return mockChannel;
+      },
+      removeChannel: () => {}
     };
 

@@ -73,24 +73,37 @@ function AdminPanel({ aliens, onAddAlien, onDeleteAlien, onUpdateAlien, onLogout
     fetchUsers();
 
     // Subscribe to real-time updates on public.profiles table
-    const channel = supabase
-      .channel('schema-db-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'profiles'
-        },
-        (payload) => {
-          console.log('Real-time profile change received:', payload);
-          fetchUsers();
-        }
-      )
-      .subscribe();
+    let channel;
+    try {
+      if (supabase && typeof supabase.channel === 'function') {
+        channel = supabase
+          .channel('schema-db-changes')
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: 'profiles'
+            },
+            (payload) => {
+              console.log('Real-time profile change received:', payload);
+              fetchUsers();
+            }
+          )
+          .subscribe();
+      }
+    } catch (err) {
+      console.warn('Failed to subscribe to real-time user updates:', err);
+    }
 
     return () => {
-      supabase.removeChannel(channel);
+      try {
+        if (channel && supabase && typeof supabase.removeChannel === 'function') {
+          supabase.removeChannel(channel);
+        }
+      } catch (err) {
+        console.warn('Failed to unsubscribe from real-time channel:', err);
+      }
     };
   }, []);
   
