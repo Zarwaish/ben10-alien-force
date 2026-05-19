@@ -48,7 +48,14 @@ function App() {
           >
             <Hero setView={setView} />
             <About />
-            <AlienShowcase aliens={aliens} loading={aliensLoading} />
+            <AlienShowcase 
+              aliens={(aliens || []).filter(a => {
+                if (!a) return false;
+                const w = a.watch_type || 'homepage';
+                return w === 'homepage' || w === 'both';
+              })} 
+              loading={aliensLoading} 
+            />
           </motion.div>
         );
       case 'omnitrix':

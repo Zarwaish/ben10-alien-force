@@ -138,13 +138,13 @@ function AdminPanel({ aliens, onAddAlien, onDeleteAlien, onUpdateAlien, onLogout
         power: alien.power || '',
         image_url: alien.image_url || '',
         gallery: alien.gallery || [],
-        watch_type: alien.watch_type || 'both',
+        watch_type: alien.watch_type || 'homepage',
         order_index: alien.order_index !== undefined && alien.order_index !== null ? Number(alien.order_index) : 1
       });
     } else {
       setEditingAlien(null);
       // Auto-increment order_index for the watch
-      const existingOfWatch = (aliens || []).filter(a => a && (a.watch_type === defaultWatch || a.watch_type === 'both' || (defaultWatch === 'omnitrix' && !a.watch_type)));
+      const existingOfWatch = (aliens || []).filter(a => a && (a.watch_type === defaultWatch || a.watch_type === 'both' || (defaultWatch === 'homepage' && !a.watch_type)));
       const maxIdx = existingOfWatch.reduce((max, a) => Math.max(max, Number(a.order_index) || 0), 0);
       setFormData({
         name: '',
@@ -233,10 +233,21 @@ function AdminPanel({ aliens, onAddAlien, onDeleteAlien, onUpdateAlien, onLogout
 
   const renderAlienVaultTable = (watchType) => {
     const isUlt = watchType === 'ultimatrix';
+    const isOmni = watchType === 'omnitrix';
+    const isHome = watchType === 'homepage';
+
     const filtered = (aliens || []).filter(a => {
       if (!a) return false;
-      const w = a.watch_type || 'both';
-      const matchesWatch = w === 'both' || (isUlt ? w === 'ultimatrix' : w === 'omnitrix') || (watchType === 'omnitrix' && !a.watch_type);
+      const w = a.watch_type;
+      
+      let matchesWatch = false;
+      if (isHome) {
+        matchesWatch = w === 'homepage' || w === 'both' || !w;
+      } else if (isOmni) {
+        matchesWatch = w === 'omnitrix' || w === 'both';
+      } else if (isUlt) {
+        matchesWatch = w === 'ultimatrix' || w === 'both';
+      }
       
       const term = searchTerm.toLowerCase();
       const matchesSearch = (a.name || '').toLowerCase().includes(term) ||
@@ -250,12 +261,14 @@ function AdminPanel({ aliens, onAddAlien, onDeleteAlien, onUpdateAlien, onLogout
       return idxA - idxB;
     });
 
+    const titlePrefix = watchType === 'homepage' ? 'Homepage' : watchType === 'omnitrix' ? 'Omnitrix' : 'Ultimatrix';
+
     return (
       <div className="aliens-v2">
         <div className="table-header-v2">
           <div className="search-box-v2">
             <Search size={18} />
-            <input type="text" placeholder={`Search ${watchType === 'omnitrix' ? 'Omnitrix' : 'Ultimatrix'} Vault...`} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+            <input type="text" placeholder={`Search ${titlePrefix} Vault...`} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
           </div>
           <button className="add-btn-v2" onClick={() => handleOpenModal(null, watchType)}>
             <Plus size={18} />
@@ -349,6 +362,10 @@ function AdminPanel({ aliens, onAddAlien, onDeleteAlien, onUpdateAlien, onLogout
             <LayoutDashboard size={20} />
             <span>Operations Hub</span>
           </button>
+          <button className={activeTab === 'homepage' ? 'active' : ''} onClick={() => setActiveTab('homepage')}>
+            <Database size={20} color="#00bfff" />
+            <span>Homepage Vault</span>
+          </button>
           <button className={activeTab === 'omnitrix' ? 'active' : ''} onClick={() => setActiveTab('omnitrix')}>
             <Database size={20} color="#00ff00" />
             <span>Omnitrix Vault</span>
@@ -380,6 +397,7 @@ function AdminPanel({ aliens, onAddAlien, onDeleteAlien, onUpdateAlien, onLogout
         <header className="admin-topbar">
           <h2 className="page-title">
             {activeTab === 'dashboard' && 'Operations Hub'}
+            {activeTab === 'homepage' && 'Homepage DNA Vault'}
             {activeTab === 'omnitrix' && 'Omnitrix DNA Vault'}
             {activeTab === 'ultimatrix' && 'Ultimatrix DNA Vault'}
             {activeTab === 'users' && 'Registered Agents Directory'}
@@ -422,6 +440,7 @@ function AdminPanel({ aliens, onAddAlien, onDeleteAlien, onUpdateAlien, onLogout
             </div>
           )}
 
+          {activeTab === 'homepage' && renderAlienVaultTable('homepage')}
           {activeTab === 'omnitrix' && renderAlienVaultTable('omnitrix')}
           {activeTab === 'ultimatrix' && renderAlienVaultTable('ultimatrix')}
 
@@ -522,8 +541,9 @@ function AdminPanel({ aliens, onAddAlien, onDeleteAlien, onUpdateAlien, onLogout
                   <div className="form-group-v2" style={{ marginBottom: 0 }}>
                     <label>Watch Assignment</label>
                     <select value={formData.watch_type} onChange={(e) => setFormData({...formData, watch_type: e.target.value})}>
-                      <option value="omnitrix">Omnitrix</option>
-                      <option value="ultimatrix">Ultimatrix</option>
+                      <option value="homepage">Homepage Only</option>
+                      <option value="omnitrix">Omnitrix Only</option>
+                      <option value="ultimatrix">Ultimatrix Only</option>
                       <option value="both">Both Watches</option>
                     </select>
                   </div>
