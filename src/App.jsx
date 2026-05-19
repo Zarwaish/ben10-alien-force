@@ -51,9 +51,17 @@ function App() {
           </motion.div>
         );
       case 'omnitrix':
-        return <DeviceSelector key="omnitrix" type="omnitrix" onTransform={handleTransform} aliens={aliens} />;
+        return user ? (
+          <DeviceSelector key="omnitrix" type="omnitrix" onTransform={handleTransform} aliens={aliens} />
+        ) : (
+          <Login setView={setView} onLoginSuccess={() => setView('omnitrix')} />
+        );
       case 'ultimatrix':
-        return <DeviceSelector key="ultimatrix" type="ultimatrix" onTransform={handleTransform} aliens={aliens} />;
+        return user ? (
+          <DeviceSelector key="ultimatrix" type="ultimatrix" onTransform={handleTransform} aliens={aliens} />
+        ) : (
+          <Login setView={setView} onLoginSuccess={() => setView('ultimatrix')} />
+        );
       case 'signup':
         return <SignUp setView={setView} />;
       case 'login':

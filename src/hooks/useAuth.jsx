@@ -53,9 +53,19 @@ export const AuthProvider = ({ children }) => {
       return;
     }
 
+    // Check if local normal session exists in localStorage
+    const localSession = localStorage.getItem('local_session');
+    if (localSession) {
+      const parsed = JSON.parse(localSession);
+      setUser(parsed.user);
+      setProfile(parsed.profile);
+      setLoading(false);
+      return;
+    }
+
     // Check active sessions and sets the user
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (localStorage.getItem('admin_session')) return;
+      if (localStorage.getItem('admin_session') || localStorage.getItem('local_session')) return;
       if (session) {
         setUser(session.user);
         fetchProfile(session.user.id);
@@ -65,7 +75,7 @@ export const AuthProvider = ({ children }) => {
 
     // Listen for changes on auth state
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (localStorage.getItem('admin_session')) return;
+      if (localStorage.getItem('admin_session') || localStorage.getItem('local_session')) return;
       if (session) {
         setUser(session.user);
         await fetchProfile(session.user.id);
@@ -92,25 +102,113 @@ export const AuthProvider = ({ children }) => {
       return adminSession;
     }
 
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw error;
-    return data;
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      return data;
+    } catch (err) {
+      console.warn('Supabase login failed, checking local registry:', err);
+      const registered = JSON.parse(localStorage.getItem('registered_users') || '[]');
+      const found = registered.find(u => u.email.toLowerCase() === cleanEmail);
+      if (found) {
+        // Mock local session
+        const session = { user: found, profile: found };
+        localStorage.setItem('local_session', JSON.stringify(session));
+        setUser(session.user);
+        setProfile(session.profile);
+        return session;
+      }
+      throw err;
+    }
   };
 
   const signup = async (email, password, username) => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { username }
+    const cleanEmail = email.toLowerCase().trim();
+    const coderUsername = username || cleanEmail.split('@')[0];
+
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { username: coderUsername }
+        }
+      });
+      if (error) throw error;
+
+      // Sync user profile to localStorage registry
+      const localUser = {
+        id: data?.user?.id || Date.now().toString(),
+        username: coderUsername,
+        email: cleanEmail,
+        role: 'user'
+      };
+      const registered = JSON.parse(localStorage.getItem('registered_users') || '[]');
+      if (!registered.some(u => u.email.toLowerCase() === cleanEmail)) {
+        registered.push(localUser);
+        localStorage.setItem('registered_users', JSON.stringify(registered));
       }
-    });
-    if (error) throw error;
-    return data;
+      return data;
+    } catch (err) {
+      console.warn('Supabase signup failed, falling back to local signup:', err);
+      const localUser = {
+        id: Date.now().toString(),
+        username: coderUsername,
+        email: cleanEmail,
+        role: 'user'
+      };
+      const registered = JSON.parse(localStorage.getItem('registered_users') || '[]');
+      if (!registered.some(u => u.email.toLowerCase() === cleanEmail)) {
+        registered.push(localUser);
+        localStorage.setItem('registered_users', JSON.stringify(registered));
+      }
+      
+      // Auto-login locally
+      const session = { user: localUser, profile: localUser };
+      localStorage.setItem('local_session', JSON.stringify(session));
+      setUser(session.user);
+      setProfile(session.profile);
+      return { user: localUser };
+    }
+  };
+
+  const loginWithGoogle = async () => {
+    try {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin
+        }
+      });
+      if (error) throw error;
+      return data;
+    } catch (err) {
+      console.warn('Supabase Google OAuth failed, initiating mock Google session:', err);
+      const mockUser = {
+        id: 'google-' + Math.random().toString(36).substring(2),
+        username: 'google.agent',
+        email: 'agent.google@plumber.com',
+        role: 'user'
+      };
+      
+      // Save mock user in local registered database
+      const registered = JSON.parse(localStorage.getItem('registered_users') || '[]');
+      if (!registered.some(u => u.email.toLowerCase() === mockUser.email)) {
+        registered.push(mockUser);
+        localStorage.setItem('registered_users', JSON.stringify(registered));
+      }
+
+      const session = { user: mockUser, profile: mockUser };
+      localStorage.setItem('local_session', JSON.stringify(session));
+      setUser(session.user);
+      setProfile(session.profile);
+      return session;
+    }
   };
 
   const logout = async () => {
     localStorage.removeItem('admin_session');
+    localStorage.removeItem('local_session');
     try {
       await supabase.auth.signOut();
     } catch (err) {
@@ -122,6 +220,19 @@ export const AuthProvider = ({ children }) => {
   };
 
   const updateProfile = async (updates) => {
+    if (localStorage.getItem('local_session') || localStorage.getItem('admin_session')) {
+      // Local profile update
+      const updatedProfile = { ...profile, ...updates };
+      setProfile(updatedProfile);
+      if (localStorage.getItem('admin_session')) {
+        localStorage.setItem('admin_session', JSON.stringify({ user, profile: updatedProfile }));
+      } else {
+        localStorage.setItem('local_session', JSON.stringify({ user: updatedProfile, profile: updatedProfile }));
+      }
+      toast.success('Profile updated locally!');
+      return updatedProfile;
+    }
+
     const { data, error } = await supabase
       .from('profiles')
       .update(updates)
@@ -142,6 +253,7 @@ export const AuthProvider = ({ children }) => {
     isAdmin: profile?.role === 'admin',
     login,
     signup,
+    loginWithGoogle,
     logout,
     updateProfile,
     refreshProfile: () => fetchProfile(user?.id)

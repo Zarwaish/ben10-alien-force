@@ -1,4 +1,5 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
 import '../styles/AdminPanel.css';
 import { 
   LayoutDashboard, 
@@ -31,6 +32,46 @@ function AdminPanel({ aliens, onAddAlien, onDeleteAlien, onUpdateAlien, onLogout
   const [editingAlien, setEditingAlien] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [registeredUsers, setRegisteredUsers] = useState([]);
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      let dbUsers = [];
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*');
+        if (!error && data) {
+          dbUsers = data;
+        }
+      } catch (err) {
+        console.warn('Could not fetch profiles from Supabase, using local cache:', err);
+      }
+      
+      const localUsers = JSON.parse(localStorage.getItem('registered_users') || '[]');
+      
+      const allUsers = [...dbUsers];
+      localUsers.forEach(lu => {
+        if (!allUsers.some(au => au.email.toLowerCase() === lu.email.toLowerCase())) {
+          allUsers.push(lu);
+        }
+      });
+      
+      const adminSession = localStorage.getItem('admin_session');
+      if (adminSession) {
+        const admin = JSON.parse(adminSession).profile;
+        if (!allUsers.some(au => au.email.toLowerCase() === admin.email.toLowerCase())) {
+          allUsers.push(admin);
+        }
+      }
+      
+      setRegisteredUsers(allUsers);
+    };
+
+    if (activeTab === 'users') {
+      fetchUsers();
+    }
+  }, [activeTab]);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -175,6 +216,10 @@ function AdminPanel({ aliens, onAddAlien, onDeleteAlien, onUpdateAlien, onLogout
             <Database size={20} />
             <span>DNA Archive</span>
           </button>
+          <button className={activeTab === 'users' ? 'active' : ''} onClick={() => setActiveTab('users')}>
+            <Users size={20} />
+            <span>Registered Agents</span>
+          </button>
           <button className={activeTab === 'terminal' ? 'active' : ''} onClick={() => setActiveTab('terminal')}>
             <Terminal size={20} />
             <span>System Log</span>
@@ -195,6 +240,7 @@ function AdminPanel({ aliens, onAddAlien, onDeleteAlien, onUpdateAlien, onLogout
           <h2 className="page-title">
             {activeTab === 'dashboard' && 'Operations Hub'}
             {activeTab === 'aliens' && 'DNA Archive Management'}
+            {activeTab === 'users' && 'Registered Agents Directory'}
             {activeTab === 'terminal' && 'System Console'}
           </h2>
           <div className="system-status">
@@ -286,6 +332,41 @@ function AdminPanel({ aliens, onAddAlien, onDeleteAlien, onUpdateAlien, onLogout
                 <p><span>[SYS]</span> DNA Database: ONLINE</p>
                 <p><span>[USER]</span> Admin access verified.</p>
                 <p className="prompt">_</p>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'users' && (
+            <div className="aliens-v2">
+              <div className="table-header-v2">
+                <h3>Plumber Academy Enrolled Agents</h3>
+              </div>
+
+              <div className="table-container-v2">
+                <table className="admin-table-v2">
+                  <thead>
+                    <tr>
+                      <th>Agent Name</th>
+                      <th>Email Identification</th>
+                      <th>Role Command</th>
+                      <th>Database ID</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {registeredUsers.map((user) => (
+                      <tr key={user.id}>
+                        <td className="font-bold">{user.username || user.email.split('@')[0]}</td>
+                        <td>{user.email}</td>
+                        <td>
+                          <span className={`tag ${user.role === 'admin' ? 'danger' : 'success'}`}>
+                            {user.role ? user.role.toUpperCase() : 'USER'}
+                          </span>
+                        </td>
+                        <td style={{fontFamily: 'monospace', fontSize: '11px', color: 'var(--text-muted)'}}>{user.id}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}
