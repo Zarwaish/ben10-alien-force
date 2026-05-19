@@ -3,7 +3,7 @@ import { useAuth } from '../hooks/useAuth';
 import { toast } from 'react-hot-toast';
 import { Mail, Lock, ShieldCheck } from 'lucide-react';
 
-function Login({ setView, onLoginSuccess }) {
+function Login({ setView, onLoginSuccess, targetView }) {
   const { login, loginWithGoogle } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -27,12 +27,15 @@ function Login({ setView, onLoginSuccess }) {
   const handleGoogleLogin = async () => {
     setLoading(true);
     try {
+      if (targetView) {
+        sessionStorage.setItem('oauth_redirect_view', targetView);
+      } else {
+        sessionStorage.setItem('oauth_redirect_view', 'home');
+      }
       await loginWithGoogle();
-      toast.success('Access Granted via Google.');
-      if (onLoginSuccess) onLoginSuccess();
+      // Redirection to Google OAuth page happens next
     } catch (error) {
       toast.error(error.message || 'Google login failed');
-    } finally {
       setLoading(false);
     }
   };

@@ -54,13 +54,13 @@ function App() {
         return user ? (
           <DeviceSelector key="omnitrix" type="omnitrix" onTransform={handleTransform} aliens={aliens} />
         ) : (
-          <Login setView={setView} onLoginSuccess={() => setView('omnitrix')} />
+          <Login setView={setView} targetView="omnitrix" onLoginSuccess={() => setView('omnitrix')} />
         );
       case 'ultimatrix':
         return user ? (
           <DeviceSelector key="ultimatrix" type="ultimatrix" onTransform={handleTransform} aliens={aliens} />
         ) : (
-          <Login setView={setView} onLoginSuccess={() => setView('ultimatrix')} />
+          <Login setView={setView} targetView="ultimatrix" onLoginSuccess={() => setView('ultimatrix')} />
         );
       case 'signup':
         return <SignUp setView={setView} />;
@@ -78,7 +78,7 @@ function App() {
             onLogout={logout}
           />
         ) : (
-          <Login setView={setView} onLoginSuccess={() => setView('admin')} />
+          <Login setView={setView} targetView="admin" onLoginSuccess={() => setView('admin')} />
         );
       case 'alien-detail':
         return <AlienDetail alien={selectedAlien} onBack={() => setView('home')} />;
@@ -86,6 +86,16 @@ function App() {
         return <Hero setView={setView} />;
     }
   };
+
+  React.useEffect(() => {
+    if (user) {
+      const redirectView = sessionStorage.getItem('oauth_redirect_view');
+      if (redirectView) {
+        setView(redirectView);
+        sessionStorage.removeItem('oauth_redirect_view');
+      }
+    }
+  }, [user]);
 
   if (authLoading) {
     return (

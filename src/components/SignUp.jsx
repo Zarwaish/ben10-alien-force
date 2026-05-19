@@ -30,12 +30,11 @@ function SignUp({ setView }) {
   const handleGoogleSignUp = async () => {
     setLoading(true);
     try {
+      sessionStorage.setItem('oauth_redirect_view', 'home');
       await loginWithGoogle();
-      toast.success('Access Granted via Google.');
-      setView('home');
+      // Redirection to Google OAuth page happens next
     } catch (error) {
       toast.error(error.message || 'Google sign up failed');
-    } finally {
       setLoading(false);
     }
   };

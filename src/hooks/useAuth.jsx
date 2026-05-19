@@ -17,32 +17,63 @@ export const AuthProvider = ({ children }) => {
         .eq('id', uid)
         .single();
 
+      let activeProfile = data;
+
       if (error) {
-        if (error.code === 'PGRST116') {
-          // Profile doesn't exist yet, try to create it (fallback if trigger failed)
-          const { data: sessionData } = await supabase.auth.getSession();
-          if (sessionData.session) {
-            const { data: newProfile } = await supabase.from('profiles').insert([
-              { 
-                id: uid, 
-                username: sessionData.session.user.email.split('@')[0],
-                email: sessionData.session.user.email,
-                role: 'user' 
-              }
-            ]).select().single();
-            setProfile(newProfile);
-            return;
+        console.log('Profile fetch error, attempting to insert profile row:', error);
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (sessionData.session) {
+          const newProfileObj = {
+            id: uid,
+            username: sessionData.session.user.user_metadata?.username || 
+                      sessionData.session.user.user_metadata?.full_name?.replace(/\s+/g, '').toLowerCase() || 
+                      sessionData.session.user.email.split('@')[0],
+            email: sessionData.session.user.email,
+            role: 'user'
+          };
+          
+          const { data: newProfile, error: insertError } = await supabase
+            .from('profiles')
+            .upsert([newProfileObj])
+            .select()
+            .single();
+
+          if (!insertError && newProfile) {
+            activeProfile = newProfile;
+          } else {
+            console.error('Failed to upsert profile to DB:', insertError);
+            activeProfile = newProfileObj;
           }
         }
-        throw error;
       }
-      setProfile(data);
+
+      if (activeProfile) {
+        setProfile(activeProfile);
+
+        // Sync current profile to localStorage registered_users registry
+        const registered = JSON.parse(localStorage.getItem('registered_users') || '[]');
+        if (!registered.some(u => u.email.toLowerCase() === activeProfile.email.toLowerCase())) {
+          registered.push(activeProfile);
+          localStorage.setItem('registered_users', JSON.stringify(registered));
+        }
+      }
     } catch (err) {
       console.error('Error fetching profile:', err);
     }
   };
 
   useEffect(() => {
+    // Clear out any old fake Google or non-persistent sessions to prevent bypasses
+    const localSessionStr = localStorage.getItem('local_session');
+    if (localSessionStr) {
+      try {
+        const parsed = JSON.parse(localSessionStr);
+        if (parsed?.user?.email === 'agent.google@plumber.com') {
+          localStorage.removeItem('local_session');
+        }
+      } catch (e) {}
+    }
+
     // Check active sessions and sets the user
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {

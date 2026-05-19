@@ -68,10 +68,29 @@ function AdminPanel({ aliens, onAddAlien, onDeleteAlien, onUpdateAlien, onLogout
       setRegisteredUsers(allUsers);
     };
 
-    if (activeTab === 'users') {
-      fetchUsers();
-    }
-  }, [activeTab]);
+    fetchUsers();
+
+    // Subscribe to real-time updates on public.profiles table
+    const channel = supabase
+      .channel('schema-db-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'profiles'
+        },
+        (payload) => {
+          console.log('Real-time profile change received:', payload);
+          fetchUsers();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
   
   const [formData, setFormData] = useState({
     name: '',
