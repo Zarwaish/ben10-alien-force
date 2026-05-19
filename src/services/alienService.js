@@ -1,6 +1,8 @@
 import { supabase } from '../lib/supabase';
 import { fallbackAliens } from '../data/fallbackAliens';
 
+let dbSupportsWatchColumns = true;
+
 export const alienService = {
   async getLocalList() {
     const local = localStorage.getItem('local_aliens');
@@ -20,8 +22,7 @@ export const alienService = {
     try {
       const { data, error } = await supabase
         .from('aliens')
-        .select('*')
-        .order('created_at', { ascending: true });
+        .select('*');
       
       if (!error && data && data.length > 0) {
         // Sync to local storage
@@ -61,21 +62,47 @@ export const alienService = {
       created_at: new Date().toISOString()
     };
 
-    try {
-      const { data, error } = await supabase
-        .from('aliens')
-        .insert([alien])
-        .select();
-      
-      if (!error && data && data.length > 0) {
-        // Update local cache
-        const current = await this.getLocalList();
-        current.push(data[0]);
-        localStorage.setItem('local_aliens', JSON.stringify(current));
-        return data[0];
+    if (dbSupportsWatchColumns) {
+      try {
+        const { data, error } = await supabase
+          .from('aliens')
+          .insert([alien])
+          .select();
+        
+        if (!error && data && data.length > 0) {
+          const current = await this.getLocalList();
+          current.push(data[0]);
+          localStorage.setItem('local_aliens', JSON.stringify(current));
+          return data[0];
+        } else if (error && (error.code === 'PGRST204' || error.message.includes('order_index') || error.message.includes('watch_type'))) {
+          console.warn('Columns watch_type or order_index missing from Supabase, enabling local fallback.');
+          dbSupportsWatchColumns = false;
+        } else if (error) {
+          throw error;
+        }
+      } catch (err) {
+        console.warn('Supabase create failed, testing columns:', err);
       }
-    } catch (err) {
-      console.warn('Supabase create failed, saving to local cache:', err);
+    }
+
+    if (!dbSupportsWatchColumns) {
+      try {
+        const { watch_type, order_index, ...stripped } = alien;
+        const { data, error } = await supabase
+          .from('aliens')
+          .insert([stripped])
+          .select();
+        
+        if (!error && data && data.length > 0) {
+          const saved = { ...data[0], watch_type, order_index };
+          const current = await this.getLocalList();
+          current.push(saved);
+          localStorage.setItem('local_aliens', JSON.stringify(current));
+          return saved;
+        }
+      } catch (err) {
+        console.warn('Supabase fallback create failed:', err);
+      }
     }
 
     // fallback save locally
@@ -86,24 +113,54 @@ export const alienService = {
   },
 
   async update(id, updates) {
-    try {
-      const { data, error } = await supabase
-        .from('aliens')
-        .update(updates)
-        .eq('id', id)
-        .select();
-      
-      if (!error && data && data.length > 0) {
-        const current = await this.getLocalList();
-        const idx = current.findIndex(a => String(a.id) === String(id));
-        if (idx !== -1) {
-          current[idx] = { ...current[idx], ...data[0] };
-          localStorage.setItem('local_aliens', JSON.stringify(current));
+    if (dbSupportsWatchColumns) {
+      try {
+        const { data, error } = await supabase
+          .from('aliens')
+          .update(updates)
+          .eq('id', id)
+          .select();
+        
+        if (!error && data && data.length > 0) {
+          const current = await this.getLocalList();
+          const idx = current.findIndex(a => String(a.id) === String(id));
+          if (idx !== -1) {
+            current[idx] = { ...current[idx], ...data[0] };
+            localStorage.setItem('local_aliens', JSON.stringify(current));
+          }
+          return data[0];
+        } else if (error && (error.code === 'PGRST204' || error.message.includes('order_index') || error.message.includes('watch_type'))) {
+          dbSupportsWatchColumns = false;
+        } else if (error) {
+          throw error;
         }
-        return data[0];
+      } catch (err) {
+        console.warn('Supabase update failed, testing columns:', err);
       }
-    } catch (err) {
-      console.warn('Supabase update failed, saving to local cache:', err);
+    }
+
+    if (!dbSupportsWatchColumns) {
+      try {
+        const { watch_type, order_index, ...stripped } = updates;
+        const { data, error } = await supabase
+          .from('aliens')
+          .update(stripped)
+          .eq('id', id)
+          .select();
+        
+        if (!error && data && data.length > 0) {
+          const saved = { ...data[0], watch_type, order_index };
+          const current = await this.getLocalList();
+          const idx = current.findIndex(a => String(a.id) === String(id));
+          if (idx !== -1) {
+            current[idx] = { ...current[idx], ...saved };
+            localStorage.setItem('local_aliens', JSON.stringify(current));
+          }
+          return saved;
+        }
+      } catch (err) {
+        console.warn('Supabase fallback update failed:', err);
+      }
     }
 
     // fallback update locally

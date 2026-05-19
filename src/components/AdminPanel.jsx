@@ -113,7 +113,9 @@ function AdminPanel({ aliens, onAddAlien, onDeleteAlien, onUpdateAlien, onLogout
     description: '',
     power: '',
     image_url: '',
-    gallery: []
+    gallery: [],
+    watch_type: 'omnitrix',
+    order_index: 1
   });
 
   const fileInputRef = useRef(null);
@@ -126,33 +128,33 @@ function AdminPanel({ aliens, onAddAlien, onDeleteAlien, onUpdateAlien, onLogout
     { label: 'ACTIVE ALERTS', value: '0', icon: <Zap size={20} />, color: 'var(--warning)' }
   ];
 
-  const filteredAliens = (aliens || []).filter(a => 
-    a && (
-      (a.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (a.type && a.type.toLowerCase().includes(searchTerm.toLowerCase()))
-    )
-  );
-
-  const handleOpenModal = (alien = null) => {
+  const handleOpenModal = (alien = null, defaultWatch = 'omnitrix') => {
     if (alien) {
       setEditingAlien(alien);
       setFormData({
-        name: alien.name,
+        name: alien.name || '',
         type: alien.type || 'Classic',
         description: alien.description || '',
         power: alien.power || '',
         image_url: alien.image_url || '',
-        gallery: alien.gallery || []
+        gallery: alien.gallery || [],
+        watch_type: alien.watch_type || 'both',
+        order_index: alien.order_index !== undefined && alien.order_index !== null ? Number(alien.order_index) : 1
       });
     } else {
       setEditingAlien(null);
+      // Auto-increment order_index for the watch
+      const existingOfWatch = (aliens || []).filter(a => a && (a.watch_type === defaultWatch || a.watch_type === 'both' || (defaultWatch === 'omnitrix' && !a.watch_type)));
+      const maxIdx = existingOfWatch.reduce((max, a) => Math.max(max, Number(a.order_index) || 0), 0);
       setFormData({
         name: '',
         type: 'Classic',
         description: '',
         power: '',
         image_url: '',
-        gallery: []
+        gallery: [],
+        watch_type: defaultWatch,
+        order_index: maxIdx + 1
       });
     }
     setIsModalOpen(true);
@@ -224,9 +226,108 @@ function AdminPanel({ aliens, onAddAlien, onDeleteAlien, onUpdateAlien, onLogout
       try {
         await onDeleteAlien(id);
       } catch (err) {
-        toast.error('Deletetion failed');
+        toast.error('Deletion failed');
       }
     }
+  };
+
+  const renderAlienVaultTable = (watchType) => {
+    const isUlt = watchType === 'ultimatrix';
+    const filtered = (aliens || []).filter(a => {
+      if (!a) return false;
+      const w = a.watch_type || 'both';
+      const matchesWatch = w === 'both' || (isUlt ? w === 'ultimatrix' : w === 'omnitrix') || (watchType === 'omnitrix' && !a.watch_type);
+      
+      const term = searchTerm.toLowerCase();
+      const matchesSearch = (a.name || '').toLowerCase().includes(term) ||
+                            (a.type && a.type.toLowerCase().includes(term));
+      return matchesWatch && matchesSearch;
+    });
+
+    const sorted = [...filtered].sort((a, b) => {
+      const idxA = a.order_index !== undefined && a.order_index !== null ? Number(a.order_index) : 999;
+      const idxB = b.order_index !== undefined && b.order_index !== null ? Number(b.order_index) : 999;
+      return idxA - idxB;
+    });
+
+    return (
+      <div className="aliens-v2">
+        <div className="table-header-v2">
+          <div className="search-box-v2">
+            <Search size={18} />
+            <input type="text" placeholder={`Search ${watchType === 'omnitrix' ? 'Omnitrix' : 'Ultimatrix'} Vault...`} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+          </div>
+          <button className="add-btn-v2" onClick={() => handleOpenModal(null, watchType)}>
+            <Plus size={18} />
+            <span>ADD SAMPLE</span>
+          </button>
+        </div>
+
+        <div className="table-container-v2">
+          <table className="admin-table-v2">
+            <thead>
+              <tr>
+                <th style={{ width: '80px' }}>Slot</th>
+                <th>Preview</th>
+                <th>Species</th>
+                <th>Classification</th>
+                <th>Power Level</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sorted.length === 0 ? (
+                <tr>
+                  <td colSpan="6" style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+                    No DNA samples recorded in this chamber. Click ADD SAMPLE to calibrate.
+                  </td>
+                </tr>
+              ) : (
+                sorted.map((alien) => (
+                  <tr key={alien.id}>
+                    <td>
+                      <input 
+                        type="number" 
+                        min="1"
+                        value={alien.order_index !== undefined && alien.order_index !== null ? alien.order_index : ''} 
+                        onChange={async (e) => {
+                          const val = parseInt(e.target.value) || 1;
+                          try {
+                            await onUpdateAlien(alien.id, { ...alien, order_index: val });
+                          } catch (err) {
+                            toast.error('Reordering failed');
+                          }
+                        }}
+                        style={{
+                          width: '65px',
+                          background: 'rgba(255, 255, 255, 0.03)',
+                          border: '1px solid var(--glass-border)',
+                          color: '#fff',
+                          borderRadius: '6px',
+                          padding: '6px',
+                          textAlign: 'center',
+                          fontFamily: 'monospace'
+                        }}
+                      />
+                    </td>
+                    <td><img src={alien.image_url} alt="" className="table-img" /></td>
+                    <td className="font-bold">{alien.name}</td>
+                    <td><span className="tag">{alien.type}</span></td>
+                    <td><span className="tag info">{alien.power || 'Unknown'}</span></td>
+                    <td>
+                      <div className="action-group">
+                        <button className="icon-btn edit" onClick={() => handleOpenModal(alien, watchType)}><Edit3 size={16} /></button>
+                        <button className="icon-btn delete" onClick={() => handleDelete(alien.id, alien.name)}><Trash2 size={16} /></button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -248,9 +349,13 @@ function AdminPanel({ aliens, onAddAlien, onDeleteAlien, onUpdateAlien, onLogout
             <LayoutDashboard size={20} />
             <span>Operations Hub</span>
           </button>
-          <button className={activeTab === 'aliens' ? 'active' : ''} onClick={() => setActiveTab('aliens')}>
-            <Database size={20} />
-            <span>DNA Archive</span>
+          <button className={activeTab === 'omnitrix' ? 'active' : ''} onClick={() => setActiveTab('omnitrix')}>
+            <Database size={20} color="#00ff00" />
+            <span>Omnitrix Vault</span>
+          </button>
+          <button className={activeTab === 'ultimatrix' ? 'active' : ''} onClick={() => setActiveTab('ultimatrix')}>
+            <Database size={20} color="#ff3300" />
+            <span>Ultimatrix Vault</span>
           </button>
           <button className={activeTab === 'users' ? 'active' : ''} onClick={() => setActiveTab('users')}>
             <Users size={20} />
@@ -275,7 +380,8 @@ function AdminPanel({ aliens, onAddAlien, onDeleteAlien, onUpdateAlien, onLogout
         <header className="admin-topbar">
           <h2 className="page-title">
             {activeTab === 'dashboard' && 'Operations Hub'}
-            {activeTab === 'aliens' && 'DNA Archive Management'}
+            {activeTab === 'omnitrix' && 'Omnitrix DNA Vault'}
+            {activeTab === 'ultimatrix' && 'Ultimatrix DNA Vault'}
             {activeTab === 'users' && 'Registered Agents Directory'}
             {activeTab === 'terminal' && 'System Console'}
           </h2>
@@ -316,50 +422,8 @@ function AdminPanel({ aliens, onAddAlien, onDeleteAlien, onUpdateAlien, onLogout
             </div>
           )}
 
-          {activeTab === 'aliens' && (
-            <div className="aliens-v2">
-              <div className="table-header-v2">
-                <div className="search-box-v2">
-                  <Search size={18} />
-                  <input type="text" placeholder="Search archive..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-                </div>
-                <button className="add-btn-v2" onClick={() => handleOpenModal()}>
-                  <Plus size={18} />
-                  <span>ADD SAMPLE</span>
-                </button>
-              </div>
-
-              <div className="table-container-v2">
-                <table className="admin-table-v2">
-                  <thead>
-                    <tr>
-                      <th>Preview</th>
-                      <th>Species</th>
-                      <th>Classification</th>
-                      <th>Power Level</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredAliens.map((alien) => (
-                      <tr key={alien.id}>
-                        <td><img src={alien.image_url} alt="" className="table-img" /></td>
-                        <td className="font-bold">{alien.name}</td>
-                        <td><span className="tag">{alien.type}</span></td>
-                        <td><div className="power-bar"><div className="bar-fill" style={{width: '80%'}}></div></div></td>
-                        <td>
-                          <div className="action-group">
-                            <button className="icon-btn edit" onClick={() => handleOpenModal(alien)}><Edit3 size={16} /></button>
-                            <button className="icon-btn delete" onClick={() => handleDelete(alien.id, alien.name)}><Trash2 size={16} /></button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
+          {activeTab === 'omnitrix' && renderAlienVaultTable('omnitrix')}
+          {activeTab === 'ultimatrix' && renderAlienVaultTable('ultimatrix')}
 
           {activeTab === 'terminal' && (
             <div className="terminal-v2">
@@ -452,6 +516,21 @@ function AdminPanel({ aliens, onAddAlien, onDeleteAlien, onUpdateAlien, onLogout
                 <div className="form-group-v2">
                   <label>Power Signatures</label>
                   <input type="text" value={formData.power} onChange={(e) => setFormData({...formData, power: e.target.value})} placeholder="e.g. Pyrokinesis, Flight" />
+                </div>
+
+                <div className="form-row-two-columns" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '20px' }}>
+                  <div className="form-group-v2" style={{ marginBottom: 0 }}>
+                    <label>Watch Assignment</label>
+                    <select value={formData.watch_type} onChange={(e) => setFormData({...formData, watch_type: e.target.value})}>
+                      <option value="omnitrix">Omnitrix</option>
+                      <option value="ultimatrix">Ultimatrix</option>
+                      <option value="both">Both Watches</option>
+                    </select>
+                  </div>
+                  <div className="form-group-v2" style={{ marginBottom: 0 }}>
+                    <label>Slot Position (Order Index)</label>
+                    <input type="number" min="1" value={formData.order_index} onChange={(e) => setFormData({...formData, order_index: parseInt(e.target.value) || 1})} required />
+                  </div>
                 </div>
 
                 <div className="gallery-section">

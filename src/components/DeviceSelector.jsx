@@ -78,9 +78,25 @@ function DeviceSelector({ type, onTransform, aliens }) {
   };
 
   const isUltimatrix = type === 'ultimatrix';
-  const displayData = isUltimatrix
-    ? aliens.map(a => ({ ...a, name: `Ultimate ${a.name}` }))
-    : aliens;
+  
+  const filteredList = (aliens || []).filter(a => {
+    if (!a) return false;
+    const watch = a.watch_type || 'both';
+    return watch === 'both' || (isUltimatrix ? watch === 'ultimatrix' : watch === 'omnitrix');
+  });
+
+  const displayData = [...filteredList]
+    .sort((a, b) => {
+      const idxA = a.order_index !== undefined && a.order_index !== null ? Number(a.order_index) : 999;
+      const idxB = b.order_index !== undefined && b.order_index !== null ? Number(b.order_index) : 999;
+      return idxA - idxB;
+    })
+    .map(a => {
+      if (isUltimatrix && a.name && !a.name.toLowerCase().startsWith('ultimate')) {
+        return { ...a, name: `Ultimate ${a.name}` };
+      }
+      return a;
+    });
 
   useEffect(() => {
     const handleKeyDown = (e) => {

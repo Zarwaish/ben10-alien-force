@@ -73,3 +73,12 @@ CREATE POLICY "Users can update own profile"
 ON profiles FOR UPDATE 
 TO authenticated 
 USING (auth.uid() = id);
+
+-- ==========================================
+-- ALIEN SYSTEM ENHANCEMENTS
+-- ==========================================
+
+-- Add watch assignment and position indexing columns to the aliens table
+ALTER TABLE aliens ADD COLUMN IF NOT EXISTS watch_type TEXT DEFAULT 'omnitrix';
+ALTER TABLE aliens ADD COLUMN IF NOT EXISTS order_index INTEGER DEFAULT 0;
+
