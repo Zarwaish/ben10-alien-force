@@ -36,38 +36,20 @@ function AdminPanel({ aliens, onAddAlien, onDeleteAlien, onUpdateAlien, onLogout
 
   useEffect(() => {
     const fetchUsers = async () => {
-      let dbUsers = [];
       try {
         const { data, error } = await supabase
           .from('profiles')
           .select('*');
         if (!error && data) {
-          dbUsers = data;
+          setRegisteredUsers(data);
+        } else {
+          console.warn('Could not fetch profiles from Supabase:', error);
+          setRegisteredUsers([]);
         }
       } catch (err) {
-        console.warn('Could not fetch profiles from Supabase, using local cache:', err);
+        console.warn('Error fetching profiles:', err);
+        setRegisteredUsers([]);
       }
-      
-      const localUsers = JSON.parse(localStorage.getItem('registered_users') || '[]');
-      
-      const allUsers = [...dbUsers];
-      localUsers.forEach(lu => {
-        if (lu && lu.email && !allUsers.some(au => au.email && au.email.toLowerCase() === lu.email.toLowerCase())) {
-          allUsers.push(lu);
-        }
-      });
-      
-      const adminSession = localStorage.getItem('admin_session');
-      if (adminSession) {
-        try {
-          const admin = JSON.parse(adminSession).profile;
-          if (admin && admin.email && !allUsers.some(au => au.email && au.email.toLowerCase() === admin.email.toLowerCase())) {
-            allUsers.push(admin);
-          }
-        } catch (e) {}
-      }
-      
-      setRegisteredUsers(allUsers);
     };
 
     fetchUsers();

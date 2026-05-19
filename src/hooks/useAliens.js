@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { alienService } from '../services/alienService';
 import { toast } from 'react-hot-toast';
 import { fallbackAliens } from '../data/fallbackAliens';
+import { supabase } from '../lib/supabase';
 
 export function useAliens() {
   const [aliens, setAliens] = useState([]);
@@ -36,6 +37,19 @@ export function useAliens() {
 
   useEffect(() => {
     fetchAliens();
+
+    // Setup Supabase Realtime Subscription for Global Syncing
+    const channel = supabase
+      .channel('public:aliens')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'aliens' }, (payload) => {
+        console.log('Realtime database sync event:', payload);
+        fetchAliens(); // Re-fetch the updated list
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const addAlien = async (newAlien) => {

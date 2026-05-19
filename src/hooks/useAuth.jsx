@@ -49,13 +49,6 @@ export const AuthProvider = ({ children }) => {
 
       if (activeProfile) {
         setProfile(activeProfile);
-
-        // Sync current profile to localStorage registered_users registry
-        const registered = JSON.parse(localStorage.getItem('registered_users') || '[]');
-        if (!registered.some(u => u.email.toLowerCase() === activeProfile.email.toLowerCase())) {
-          registered.push(activeProfile);
-          localStorage.setItem('registered_users', JSON.stringify(registered));
-        }
       }
     } catch (err) {
       console.error('Error fetching profile:', err);
@@ -142,17 +135,7 @@ export const AuthProvider = ({ children }) => {
       if (error) throw error;
       return data;
     } catch (err) {
-      console.warn('Supabase login failed, checking local registry:', err);
-      const registered = JSON.parse(localStorage.getItem('registered_users') || '[]');
-      const found = registered.find(u => u.email.toLowerCase() === cleanEmail);
-      if (found) {
-        // Mock local session
-        const session = { user: found, profile: found };
-        localStorage.setItem('local_session', JSON.stringify(session));
-        setUser(session.user);
-        setProfile(session.profile);
-        return session;
-      }
+      console.warn('Supabase login failed:', err);
       throw err;
     }
   };
@@ -187,39 +170,10 @@ export const AuthProvider = ({ children }) => {
         }
       }
 
-      // Sync user profile to localStorage registry
-      const localUser = {
-        id: data?.user?.id || Date.now().toString(),
-        username: coderUsername,
-        email: cleanEmail,
-        role: 'user'
-      };
-      const registered = JSON.parse(localStorage.getItem('registered_users') || '[]');
-      if (!registered.some(u => u.email.toLowerCase() === cleanEmail)) {
-        registered.push(localUser);
-        localStorage.setItem('registered_users', JSON.stringify(registered));
-      }
       return data;
     } catch (err) {
-      console.warn('Supabase signup failed, falling back to local signup:', err);
-      const localUser = {
-        id: Date.now().toString(),
-        username: coderUsername,
-        email: cleanEmail,
-        role: 'user'
-      };
-      const registered = JSON.parse(localStorage.getItem('registered_users') || '[]');
-      if (!registered.some(u => u.email.toLowerCase() === cleanEmail)) {
-        registered.push(localUser);
-        localStorage.setItem('registered_users', JSON.stringify(registered));
-      }
-      
-      // Auto-login locally
-      const session = { user: localUser, profile: localUser };
-      localStorage.setItem('local_session', JSON.stringify(session));
-      setUser(session.user);
-      setProfile(session.profile);
-      return { user: localUser };
+      console.warn('Supabase signup failed:', err);
+      throw err;
     }
   };
 
