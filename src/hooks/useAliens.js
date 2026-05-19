@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { alienService } from '../services/alienService';
 import { toast } from 'react-hot-toast';
-import { fallbackAliens } from '../data/fallbackAliens';
 import { supabase } from '../lib/supabase';
 
 export function useAliens() {
@@ -13,19 +12,7 @@ export function useAliens() {
     try {
       setLoading(true);
       const data = await alienService.getAll();
-      const enriched = data.map(dbAlien => {
-        const fallback = fallbackAliens.find(f => 
-          f.name.toLowerCase() === dbAlien.name.toLowerCase() || 
-          String(f.id) === String(dbAlien.id)
-        );
-        return {
-          ...dbAlien,
-          gallery: fallback 
-            ? [dbAlien.image_url || dbAlien.img, ...fallback.gallery.slice(1)]
-            : (dbAlien.gallery || [dbAlien.image_url || dbAlien.img])
-        };
-      });
-      setAliens(enriched);
+      setAliens(data);
     } catch (err) {
       console.error('Error fetching aliens:', err);
       setError(err.message);
@@ -42,7 +29,6 @@ export function useAliens() {
     const channel = supabase
       .channel('public:aliens')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'aliens' }, (payload) => {
-        console.log('Realtime database sync event:', payload);
         fetchAliens(); // Re-fetch the updated list
       })
       .subscribe();

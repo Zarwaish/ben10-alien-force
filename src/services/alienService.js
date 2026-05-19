@@ -1,71 +1,33 @@
 import { supabase } from '../lib/supabase';
-import { fallbackAliens } from '../data/fallbackAliens';
 
 let dbSupportsWatchColumns = true;
 
 export const alienService = {
-  async getLocalList() {
-    const local = localStorage.getItem('local_aliens');
-    if (local) {
-      try {
-        return JSON.parse(local);
-      } catch (e) {
-        console.error('Error parsing local_aliens cache:', e);
-      }
-    }
-    // Initialize cache if it doesn't exist
-    localStorage.setItem('local_aliens', JSON.stringify(fallbackAliens));
-    return fallbackAliens;
-  },
-
   async getAll() {
-    try {
-      const { data, error } = await supabase
-        .from('aliens')
-        .select('*');
-      
-      if (!error && data) {
-        if (data.length === 0) {
-          // Initialize empty database with fallback aliens
-          const { data: inserted, error: insertErr } = await supabase
-            .from('aliens')
-            .insert(fallbackAliens)
-            .select();
-            
-          if (!insertErr && inserted) {
-            localStorage.setItem('local_aliens', JSON.stringify(inserted));
-            return inserted;
-          }
-        }
-        
-        // Sync to local storage for quick cache
-        localStorage.setItem('local_aliens', JSON.stringify(data));
-        return data;
-      }
-    } catch (err) {
-      console.warn('Supabase fetch failed, falling back to localStorage cache:', err);
-    }
+    const { data, error } = await supabase
+      .from('aliens')
+      .select('*')
+      .order('order_index', { ascending: true, nullsFirst: false });
     
-    return this.getLocalList();
+    if (error) {
+      console.error('Failed to fetch from Supabase:', error);
+      throw error;
+    }
+    return data || [];
   },
 
   async getByName(name) {
-    try {
-      const { data, error } = await supabase
-        .from('aliens')
-        .select('*')
-        .eq('name', name)
-        .single();
-      
-      if (!error && data) return data;
-    } catch (err) {
-      console.warn('Supabase getByName failed, using local cache:', err);
+    const { data, error } = await supabase
+      .from('aliens')
+      .select('*')
+      .ilike('name', name)
+      .single();
+    
+    if (error) {
+      console.error('Failed to fetch alien by name:', error);
+      throw error;
     }
-
-    const current = await this.getLocalList();
-    const found = current.find(a => a.name.toLowerCase() === name.toLowerCase());
-    if (found) return found;
-    throw new Error('Alien not found');
+    return data;
   },
 
   async create(alien) {

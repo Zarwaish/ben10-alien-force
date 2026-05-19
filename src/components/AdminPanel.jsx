@@ -68,7 +68,6 @@ function AdminPanel({ aliens, onAddAlien, onDeleteAlien, onUpdateAlien, onLogout
               table: 'profiles'
             },
             (payload) => {
-              console.log('Real-time profile change received:', payload);
               fetchUsers();
             }
           )

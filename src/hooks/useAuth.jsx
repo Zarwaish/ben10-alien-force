@@ -20,7 +20,6 @@ export const AuthProvider = ({ children }) => {
       let activeProfile = data;
 
       if (error) {
-        console.log('Profile fetch error, attempting to insert profile row:', error);
         const { data: sessionData } = await supabase.auth.getSession();
         if (sessionData.session) {
           const newProfileObj = {
