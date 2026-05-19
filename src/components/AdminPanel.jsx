@@ -195,8 +195,9 @@ function AdminPanel({ aliens, onAddAlien, onDeleteAlien, onUpdateAlien, onLogout
       }
       setIsModalOpen(false);
     } catch (err) {
-      console.error(err);
-      toast.error('Database sync failed');
+      console.error('[AdminPanel.handleSubmit]', err);
+      // Show the real error — not a generic one
+      toast.error(err?.message || 'Database sync failed', { duration: 8000 });
     } finally {
       setUploading(false);
     }
