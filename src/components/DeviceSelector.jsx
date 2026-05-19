@@ -20,6 +20,15 @@ import omx10 from '../assets/images/omx10.png';
 
 const getOmxImage = (alien, index) => {
   if (!alien) return omx1;
+
+  // Verify if it is one of the hardcoded default fallback aliens
+  const isDefaultAlien = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'].includes(String(alien.id));
+
+  // If it is a custom uploaded alien, use the uploaded image directly
+  if (!isDefaultAlien && alien.image_url) {
+    return alien.image_url;
+  }
+
   const cleanName = alien.name ? alien.name.replace('Ultimate ', '').toLowerCase().trim() : '';
   if (cleanName.includes('swampfire')) return omx1;
   if (cleanName.includes('humungousaur') || cleanName.includes('humangasour')) return omx2;
@@ -32,11 +41,16 @@ const getOmxImage = (alien, index) => {
   if (cleanName.includes('way big') || cleanName.includes('waybig')) return omx9;
   if (cleanName.includes('spidermonkey') || cleanName.includes('spm')) return omx10;
   
-  // Fallback by ID
+  // Fallback by ID for compatibility
   const idNum = parseInt(alien.id, 10);
   if (!isNaN(idNum) && idNum >= 1 && idNum <= 10) {
     const fallbacks = [omx1, omx2, omx3, omx4, omx5, omx6, omx7, omx8, omx9, omx10];
     return fallbacks[idNum - 1];
+  }
+  
+  // Final fallback to uploaded image if available
+  if (alien.image_url) {
+    return alien.image_url;
   }
   
   // Fallback by index
