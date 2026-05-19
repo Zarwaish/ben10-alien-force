@@ -13,6 +13,7 @@ import Login from './components/Login';
 import AdminPanel from './components/AdminPanel';
 import DeviceSelector from './components/DeviceSelector';
 import UserProfile from './components/UserProfile';
+import ErrorBoundary from './components/ErrorBoundary';
 
 // Hooks & Services
 import { useAliens } from './hooks/useAliens';
@@ -70,13 +71,15 @@ function App() {
         return <UserProfile />;
       case 'admin':
         return isAdmin ? (
-          <AdminPanel 
-            aliens={aliens}
-            onAddAlien={addAlien}
-            onUpdateAlien={updateAlien}
-            onDeleteAlien={deleteAlien}
-            onLogout={logout}
-          />
+          <ErrorBoundary>
+            <AdminPanel 
+              aliens={aliens}
+              onAddAlien={addAlien}
+              onUpdateAlien={updateAlien}
+              onDeleteAlien={deleteAlien}
+              onLogout={logout}
+            />
+          </ErrorBoundary>
         ) : (
           <Login setView={setView} targetView="admin" onLoginSuccess={() => setView('admin')} />
         );

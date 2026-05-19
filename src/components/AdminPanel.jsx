@@ -52,17 +52,19 @@ function AdminPanel({ aliens, onAddAlien, onDeleteAlien, onUpdateAlien, onLogout
       
       const allUsers = [...dbUsers];
       localUsers.forEach(lu => {
-        if (!allUsers.some(au => au.email.toLowerCase() === lu.email.toLowerCase())) {
+        if (lu && lu.email && !allUsers.some(au => au.email && au.email.toLowerCase() === lu.email.toLowerCase())) {
           allUsers.push(lu);
         }
       });
       
       const adminSession = localStorage.getItem('admin_session');
       if (adminSession) {
-        const admin = JSON.parse(adminSession).profile;
-        if (!allUsers.some(au => au.email.toLowerCase() === admin.email.toLowerCase())) {
-          allUsers.push(admin);
-        }
+        try {
+          const admin = JSON.parse(adminSession).profile;
+          if (admin && admin.email && !allUsers.some(au => au.email && au.email.toLowerCase() === admin.email.toLowerCase())) {
+            allUsers.push(admin);
+          }
+        } catch (e) {}
       }
       
       setRegisteredUsers(allUsers);
@@ -105,15 +107,17 @@ function AdminPanel({ aliens, onAddAlien, onDeleteAlien, onUpdateAlien, onLogout
   const galleryInputRef = useRef(null);
 
   const stats = [
-    { label: 'DNA SAMPLES', value: aliens.length, icon: <Database size={20} />, color: 'var(--primary)' },
+    { label: 'DNA SAMPLES', value: (aliens || []).length, icon: <Database size={20} />, color: 'var(--primary)' },
     { label: 'SYSTEM UPTIME', value: '99.9%', icon: <Activity size={20} />, color: 'var(--info)' },
     { label: 'SECURITY LEVEL', value: '10', icon: <Shield size={20} />, color: 'var(--success)' },
     { label: 'ACTIVE ALERTS', value: '0', icon: <Zap size={20} />, color: 'var(--warning)' }
   ];
 
-  const filteredAliens = aliens.filter(a => 
-    a.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (a.type && a.type.toLowerCase().includes(searchTerm.toLowerCase()))
+  const filteredAliens = (aliens || []).filter(a => 
+    a && (
+      (a.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (a.type && a.type.toLowerCase().includes(searchTerm.toLowerCase()))
+    )
   );
 
   const handleOpenModal = (alien = null) => {
@@ -292,7 +296,7 @@ function AdminPanel({ aliens, onAddAlien, onDeleteAlien, onUpdateAlien, onLogout
                   </div>
                   <div className="timeline-item info">
                     <Activity size={16} />
-                    <div className="timeline-text"><p>{aliens.length} alien samples verified</p><span>5 mins ago</span></div>
+                    <div className="timeline-text"><p>{(aliens || []).length} alien samples verified</p><span>5 mins ago</span></div>
                   </div>
                 </div>
               </div>
@@ -373,15 +377,15 @@ function AdminPanel({ aliens, onAddAlien, onDeleteAlien, onUpdateAlien, onLogout
                   </thead>
                   <tbody>
                     {registeredUsers.map((user) => (
-                      <tr key={user.id}>
-                        <td className="font-bold">{user.username || user.email.split('@')[0]}</td>
-                        <td>{user.email}</td>
+                      <tr key={user.id || Math.random().toString()}>
+                        <td className="font-bold">{user.username || (user.email || '').split('@')[0] || 'Unknown'}</td>
+                        <td>{user.email || 'N/A'}</td>
                         <td>
                           <span className={`tag ${user.role === 'admin' ? 'danger' : 'success'}`}>
                             {user.role ? user.role.toUpperCase() : 'USER'}
                           </span>
                         </td>
-                        <td style={{fontFamily: 'monospace', fontSize: '11px', color: 'var(--text-muted)'}}>{user.id}</td>
+                        <td style={{fontFamily: 'monospace', fontSize: '11px', color: 'var(--text-muted)'}}>{user.id || 'N/A'}</td>
                       </tr>
                     ))}
                   </tbody>
