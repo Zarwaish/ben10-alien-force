@@ -59,7 +59,6 @@ export function useAliens() {
       toast.success('Alien added successfully');
       return added;
     } catch (err) {
-      toast.error('Failed to add alien');
       throw err;
     }
   };
@@ -71,7 +70,6 @@ export function useAliens() {
       toast.success('Alien updated successfully');
       return updated;
     } catch (err) {
-      toast.error('Failed to update alien');
       throw err;
     }
   };
@@ -82,7 +80,6 @@ export function useAliens() {
       setAliens(aliens.filter(a => a.id !== id));
       toast.success('Alien removed from archive');
     } catch (err) {
-      toast.error('Failed to delete alien');
       throw err;
     }
   };

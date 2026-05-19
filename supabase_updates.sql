@@ -82,3 +82,30 @@ USING (auth.uid() = id);
 ALTER TABLE aliens ADD COLUMN IF NOT EXISTS watch_type TEXT DEFAULT 'omnitrix';
 ALTER TABLE aliens ADD COLUMN IF NOT EXISTS order_index INTEGER DEFAULT 0;
 
+-- Ensure RLS is enabled and accessible
+ALTER TABLE aliens ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Public read access for aliens" ON aliens;
+CREATE POLICY "Public read access for aliens" 
+ON aliens FOR SELECT 
+TO public 
+USING (true);
+
+DROP POLICY IF EXISTS "Authenticated users can insert aliens" ON aliens;
+CREATE POLICY "Authenticated users can insert aliens" 
+ON aliens FOR INSERT 
+TO authenticated 
+WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Authenticated users can update aliens" ON aliens;
+CREATE POLICY "Authenticated users can update aliens" 
+ON aliens FOR UPDATE 
+TO authenticated 
+USING (true);
+
+DROP POLICY IF EXISTS "Authenticated users can delete aliens" ON aliens;
+CREATE POLICY "Authenticated users can delete aliens" 
+ON aliens FOR DELETE 
+TO authenticated 
+USING (true);
+

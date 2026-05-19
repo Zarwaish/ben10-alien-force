@@ -69,40 +69,49 @@ export const alienService = {
   },
 
   async create(alien) {
+    // Let Supabase auto-generate the UUID if not provided
+    const payload = {
+      ...alien,
+      created_at: new Date().toISOString()
+    };
+    if (alien.id) payload.id = alien.id;
+
     if (dbSupportsWatchColumns) {
       try {
         const { data, error } = await supabase
           .from('aliens')
-          .insert([alien])
+          .insert([payload])
           .select();
         
         if (!error && data && data.length > 0) {
           return data[0];
-        } else if (error && (error.code === 'PGRST204' || error.message.includes('order_index') || error.message.includes('watch_type'))) {
+        } else if (error && (error.code === 'PGRST204' || error.message?.includes('order_index') || error.message?.includes('watch_type'))) {
           console.warn('Columns watch_type or order_index missing from Supabase, enabling backward compatible insert.');
           dbSupportsWatchColumns = false;
         } else if (error) {
           throw error;
         }
       } catch (err) {
-        console.warn('Supabase create failed, testing columns:', err);
+        if (dbSupportsWatchColumns) {
+           console.error('Supabase create failed:', err);
+           throw err;
+        }
       }
     }
 
     if (!dbSupportsWatchColumns) {
-      const { watch_type, order_index, ...stripped } = alien;
+      const { watch_type, order_index, ...stripped } = payload;
       const { data, error } = await supabase
         .from('aliens')
         .insert([stripped])
         .select();
       
       if (!error && data && data.length > 0) {
-        // Return full object to client even if DB stripped new columns
         return { ...data[0], watch_type, order_index };
       }
-      throw error || new Error('Database insertion failed');
+      console.error('Supabase fallback create failed:', error);
+      throw error || new Error(error?.message || 'Database insertion failed');
     }
-
     throw new Error('Database operation failed. Please check backend connection.');
   },
 
@@ -117,13 +126,17 @@ export const alienService = {
         
         if (!error && data && data.length > 0) {
           return data[0];
-        } else if (error && (error.code === 'PGRST204' || error.message.includes('order_index') || error.message.includes('watch_type'))) {
+        } else if (error && (error.code === 'PGRST204' || error.message?.includes('order_index') || error.message?.includes('watch_type'))) {
+          console.warn('Columns watch_type or order_index missing from Supabase, enabling backward compatible update.');
           dbSupportsWatchColumns = false;
         } else if (error) {
           throw error;
         }
       } catch (err) {
-        console.warn('Supabase update failed, testing columns:', err);
+        if (dbSupportsWatchColumns) {
+           console.error('Supabase update failed:', err);
+           throw err;
+        }
       }
     }
 
@@ -138,9 +151,9 @@ export const alienService = {
       if (!error && data && data.length > 0) {
         return { ...data[0], watch_type, order_index };
       }
+      console.error('Supabase fallback update failed:', error);
       throw error || new Error('Database update failed');
     }
-
     throw new Error('Database operation failed. Please check backend connection.');
   },
 
