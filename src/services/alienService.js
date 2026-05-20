@@ -9,6 +9,7 @@ async function probeColumns() {
   try {
     const { data, error } = await supabase.from('aliens').select('watch_type, order_index, gallery').limit(1);
     if (error) {
+      console.warn('[alienService.probeColumns] Error probing columns:', error);
       // PGRST204 means columns missing; other errors = table issue
       _hasWatchColumns = false;
       _hasGalleryColumn = false;
@@ -16,7 +17,8 @@ async function probeColumns() {
       _hasWatchColumns = true;
       _hasGalleryColumn = true;
     }
-  } catch {
+  } catch (err) {
+    console.error('[alienService.probeColumns] Unexpected exception during probe:', err);
     _hasWatchColumns = false;
     _hasGalleryColumn = false;
   }

@@ -60,49 +60,102 @@ export const AuthProvider = ({ children }) => {
   };
 
   useEffect(() => {
+    // 1. Fallback Timeout: Force-disable loading screen after 2.5 seconds no matter what
+    const fallbackTimeout = setTimeout(() => {
+      console.warn('Auth initialization timed out, forcing loading screen to close.');
+      setLoading(false);
+    }, 2500);
+
     // Clear out any old fake Google or non-persistent sessions to prevent bypasses
-    const localSessionStr = localStorage.getItem('local_session');
-    if (localSessionStr) {
-      localStorage.removeItem('local_session');
+    try {
+      const localSessionStr = localStorage.getItem('local_session');
+      if (localSessionStr) {
+        localStorage.removeItem('local_session');
+      }
+    } catch (e) {
+      console.warn('Could not access localStorage:', e);
     }
 
     // Check active sessions and sets the user
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        setUser(session.user);
-        fetchProfile(session.user.id);
-      } else {
-        // Fallback to local admin session ONLY
-        const localAdmin = localStorage.getItem('admin_session');
-        if (localAdmin) {
-          const parsed = JSON.parse(localAdmin);
-          setUser(parsed.user);
-          setProfile(parsed.profile);
-        }
-      }
+    try {
+      supabase.auth.getSession()
+        .then(({ data }) => {
+          const session = data?.session || null;
+          if (session) {
+            setUser(session.user);
+            fetchProfile(session.user.id);
+          } else {
+            // Fallback to local admin session ONLY
+            try {
+              const localAdmin = localStorage.getItem('admin_session');
+              if (localAdmin) {
+                const parsed = JSON.parse(localAdmin);
+                setUser(parsed.user);
+                setProfile(parsed.profile);
+              }
+            } catch (adminErr) {
+              console.warn('Error reading admin session:', adminErr);
+            }
+          }
+        })
+        .catch(err => {
+          console.error('Error fetching Supabase session:', err);
+        })
+        .finally(() => {
+          clearTimeout(fallbackTimeout);
+          setLoading(false);
+        });
+    } catch (err) {
+      console.error('Error during getSession setup:', err);
+      clearTimeout(fallbackTimeout);
       setLoading(false);
-    });
+    }
 
     // Listen for changes on auth state
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session) {
-        setUser(session.user);
-        await fetchProfile(session.user.id);
-      } else {
-        const localAdmin = localStorage.getItem('admin_session');
-        if (localAdmin) {
-          const parsed = JSON.parse(localAdmin);
-          setUser(parsed.user);
-          setProfile(parsed.profile);
-        } else {
-          setUser(null);
-          setProfile(null);
+    let subscription = null;
+    try {
+      const res = supabase.auth.onAuthStateChange(async (_event, session) => {
+        try {
+          if (session) {
+            setUser(session.user);
+            await fetchProfile(session.user.id);
+          } else {
+            try {
+              const localAdmin = localStorage.getItem('admin_session');
+              if (localAdmin) {
+                const parsed = JSON.parse(localAdmin);
+                setUser(parsed.user);
+                setProfile(parsed.profile);
+              } else {
+                setUser(null);
+                setProfile(null);
+              }
+            } catch (adminErr) {
+              console.warn('Error checking local admin session in listener:', adminErr);
+              setUser(null);
+              setProfile(null);
+            }
+          }
+        } catch (innerErr) {
+          console.error('Error in auth state change listener callback:', innerErr);
+        } finally {
+          clearTimeout(fallbackTimeout);
+          setLoading(false);
         }
-      }
+      });
+      subscription = res?.data?.subscription || res?.subscription;
+    } catch (err) {
+      console.error('Error setting up onAuthStateChange listener:', err);
+      clearTimeout(fallbackTimeout);
       setLoading(false);
-    });
+    }
 
-    return () => subscription.unsubscribe();
+    return () => {
+      clearTimeout(fallbackTimeout);
+      if (subscription && typeof subscription.unsubscribe === 'function') {
+        subscription.unsubscribe();
+      }
+    };
   }, []);
 
   const login = async (email, password) => {

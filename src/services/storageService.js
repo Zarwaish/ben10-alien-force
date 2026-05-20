@@ -24,7 +24,12 @@ export const storageService = {
 
       return data.publicUrl;
     } catch (err) {
-      console.warn('Supabase storage upload failed, falling back to local base64:', err);
+      console.error('[Supabase Storage Upload Error]', err);
+      console.warn(
+        'Supabase storage upload failed. Falling back to local base64. \n' +
+        'IMPORTANT: To fix this permanently, make sure the "alien-assets" storage bucket exists and ' +
+        'the storage RLS policies from "supabase_updates.sql" are run in your Supabase Dashboard SQL Editor.'
+      );
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onloadend = () => resolve(reader.result);

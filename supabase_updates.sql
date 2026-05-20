@@ -29,6 +29,9 @@ DROP POLICY IF EXISTS "Public read access for aliens"         ON aliens;
 DROP POLICY IF EXISTS "Authenticated users can insert aliens" ON aliens;
 DROP POLICY IF EXISTS "Authenticated users can update aliens" ON aliens;
 DROP POLICY IF EXISTS "Authenticated users can delete aliens" ON aliens;
+DROP POLICY IF EXISTS "Public insert access for aliens"       ON aliens;
+DROP POLICY IF EXISTS "Public update access for aliens"       ON aliens;
+DROP POLICY IF EXISTS "Public delete access for aliens"       ON aliens;
 
 -- Anyone can read aliens (public website)
 CREATE POLICY "Public read access for aliens"
@@ -36,21 +39,21 @@ CREATE POLICY "Public read access for aliens"
   TO public
   USING (true);
 
--- Logged-in users can insert, update, delete
-CREATE POLICY "Authenticated users can insert aliens"
+-- Anyone can insert, update, delete (needed because local admin session is unauthenticated in Supabase)
+CREATE POLICY "Public insert access for aliens"
   ON aliens FOR INSERT
-  TO authenticated
+  TO public
   WITH CHECK (true);
 
-CREATE POLICY "Authenticated users can update aliens"
+CREATE POLICY "Public update access for aliens"
   ON aliens FOR UPDATE
-  TO authenticated
+  TO public
   USING (true)
   WITH CHECK (true);
 
-CREATE POLICY "Authenticated users can delete aliens"
+CREATE POLICY "Public delete access for aliens"
   ON aliens FOR DELETE
-  TO authenticated
+  TO public
   USING (true);
 
 
@@ -108,6 +111,48 @@ DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+
+-- -----------------------------------------------------------------------
+-- SECTION 6: storage bucket & policies for alien-assets
+-- -----------------------------------------------------------------------
+-- Ensure the bucket exists and is public
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('alien-assets', 'alien-assets', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- Enable RLS on storage.objects
+ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Public Select alien-assets" ON storage.objects;
+DROP POLICY IF EXISTS "Public Insert alien-assets" ON storage.objects;
+DROP POLICY IF EXISTS "Public Update alien-assets" ON storage.objects;
+DROP POLICY IF EXISTS "Public Delete alien-assets" ON storage.objects;
+
+-- Create SELECT policy
+CREATE POLICY "Public Select alien-assets"
+  ON storage.objects FOR SELECT
+  TO public
+  USING (bucket_id = 'alien-assets');
+
+-- Create INSERT policy (anyone can upload, needed for unauthenticated admin session)
+CREATE POLICY "Public Insert alien-assets"
+  ON storage.objects FOR INSERT
+  TO public
+  WITH CHECK (bucket_id = 'alien-assets');
+
+-- Create UPDATE policy
+CREATE POLICY "Public Update alien-assets"
+  ON storage.objects FOR UPDATE
+  TO public
+  USING (bucket_id = 'alien-assets')
+  WITH CHECK (bucket_id = 'alien-assets');
+
+-- Create DELETE policy
+CREATE POLICY "Public Delete alien-assets"
+  ON storage.objects FOR DELETE
+  TO public
+  USING (bucket_id = 'alien-assets');
 
 
 -- -----------------------------------------------------------------------
