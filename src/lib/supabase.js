@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://lmpvugbgdnrerucecgze.supabase.co';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_xGzUSWFUkcYGA0IwIJJjbg_elILikk0';
 
 // Check if credentials are valid URLs/strings to prevent createClient from throwing
 const isValidConfig = supabaseUrl && 
