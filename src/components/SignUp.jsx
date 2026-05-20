@@ -17,9 +17,14 @@ function SignUp({ setView }) {
     setLoading(true);
 
     try {
-      await signup(formData.email, formData.password, formData.username);
-      toast.success('Access Request Sent. Please verify your email.');
-      setView('login');
+      const data = await signup(formData.email, formData.password, formData.username);
+      if (data?.session) {
+        toast.success('Agent enrolled and authenticated!');
+        setView('home');
+      } else {
+        toast.success('Access Request Sent. Please verify your email.');
+        setView('login');
+      }
     } catch (error) {
       toast.error(error.message || 'Sign up failed');
     } finally {
