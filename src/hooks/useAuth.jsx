@@ -1,4 +1,4 @@
-import { useState, useEffect, createContext, useContext } from 'react';
+import { useState, useEffect, createContext, useContext, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { toast } from 'react-hot-toast';
 
@@ -8,8 +8,13 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const lastFetchedUid = useRef(null);
 
   const fetchProfile = async (uid) => {
+    if (!uid) return;
+    if (lastFetchedUid.current === uid) return;
+    lastFetchedUid.current = uid;
+
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -174,6 +179,7 @@ export const AuthProvider = ({ children }) => {
   const logout = async () => {
     localStorage.removeItem('admin_session');
     localStorage.removeItem('local_session');
+    lastFetchedUid.current = null;
     try {
       await supabase.auth.signOut();
     } catch (err) {

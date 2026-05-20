@@ -11,6 +11,7 @@ function Login({ setView, onLoginSuccess, targetView }) {
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    if (loading) return;
     setLoading(true);
     
     try {
@@ -25,6 +26,7 @@ function Login({ setView, onLoginSuccess, targetView }) {
   };
 
   const handleGoogleLogin = async () => {
+    if (loading) return;
     setLoading(true);
     try {
       if (targetView) {

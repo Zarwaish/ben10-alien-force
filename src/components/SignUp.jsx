@@ -14,6 +14,7 @@ function SignUp({ setView }) {
 
   const handleSignUp = async (e) => {
     e.preventDefault();
+    if (loading) return;
     setLoading(true);
 
     try {
@@ -33,6 +34,7 @@ function SignUp({ setView }) {
   };
 
   const handleGoogleSignUp = async () => {
+    if (loading) return;
     setLoading(true);
     try {
       sessionStorage.setItem('oauth_redirect_view', 'home');
