@@ -591,9 +591,9 @@
 }
 
 .ultimatrix-theme {
-    --primary: #ff3300;
-    --primary-dark: #cc2400;
-    --primary-glow: rgba(255, 51, 0, 0.45);
+    --primary: #00ff00;
+    --primary-dark: #008000;
+    --primary-glow: rgba(0, 255, 0, 0.4);
 }
 
 .alien-container {
