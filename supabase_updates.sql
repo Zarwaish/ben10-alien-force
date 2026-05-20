@@ -66,23 +66,36 @@ ALTER TABLE profiles ADD COLUMN IF NOT EXISTS updated_at  TIMESTAMPTZ DEFAULT NO
 
 
 -- -----------------------------------------------------------------------
--- SECTION 4: profiles RLS — read/update own row
+-- SECTION 4: profiles RLS — read/update own row (recursion-free)
 -- -----------------------------------------------------------------------
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS "Users can view own profile"    ON profiles;
-DROP POLICY IF EXISTS "Users can update own profile"  ON profiles;
-DROP POLICY IF EXISTS "Public can read profiles"      ON profiles;
+-- Dynamic drop block to clear out all existing policies on profiles
+DO $$
+DECLARE
+    pol record;
+BEGIN
+    FOR pol IN 
+        SELECT policyname 
+        FROM pg_policies 
+        WHERE schemaname = 'public' AND tablename = 'profiles'
+    LOOP
+        EXECUTE format('DROP POLICY %I ON profiles', pol.policyname);
+    END LOOP;
+END $$;
 
-CREATE POLICY "Public can read profiles"
+-- Recreate policies cleanly (no subqueries on profiles)
+CREATE POLICY "Public read profiles"
   ON profiles FOR SELECT
-  TO public
   USING (true);
 
-CREATE POLICY "Users can update own profile"
+CREATE POLICY "Users update own profile"
   ON profiles FOR UPDATE
-  TO authenticated
   USING (auth.uid() = id)
+  WITH CHECK (auth.uid() = id);
+
+CREATE POLICY "Users insert own profile"
+  ON profiles FOR INSERT
   WITH CHECK (auth.uid() = id);
 
 

@@ -104,21 +104,27 @@ export const alienService = {
   },
 
   async create(alien) {
+    console.log('[alienService.create] Probing columns...');
     await probeColumns();
+    console.log('[alienService.create] Columns probed. Building payload...');
     const payload = buildPayload(alien);
 
-    console.info('[alienService.create] payload:', payload);
+    console.info('[alienService.create] Payload ready:', payload);
 
+    console.log('[alienService.create] Inserting to Supabase...');
     const { data, error } = await supabase
       .from('aliens')
       .insert([payload])
       .select();
+
+    console.log('[alienService.create] Insert query response received. Error:', error, 'Data:', data);
 
     if (error) {
       console.error('[alienService.create] Supabase error:', error);
 
       // If unknown columns, reset probe and retry without them
       if (error.code === 'PGRST204' || error.message?.includes('watch_type') || error.message?.includes('order_index') || error.message?.includes('gallery')) {
+        console.log('[alienService.create] Retrying insert with stripped payload due to schema mismatch...');
         _hasWatchColumns = false;
         _hasGalleryColumn = false;
         const stripped = buildPayload(alien);
@@ -127,6 +133,7 @@ export const alienService = {
           console.error('[alienService.create] Fallback insert error:', e2);
           await throwFriendly(e2, 'create (fallback)');
         }
+        console.log('[alienService.create] Fallback insert succeeded:', d2);
         return { ...d2[0], watch_type: alien.watch_type, order_index: alien.order_index };
       }
 

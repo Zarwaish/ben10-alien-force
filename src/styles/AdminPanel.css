@@ -380,6 +380,13 @@
     margin-bottom: 20px;
 }
 
+.form-row-two-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
 .main-upload {
     width: 100%;
     aspect-ratio: 1;
@@ -558,6 +565,13 @@
     .sidebar-nav {
         flex-direction: row;
         gap: 8px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+
+    .sidebar-nav::-webkit-scrollbar {
+        display: none;
     }
     
     .sidebar-nav button {
@@ -639,5 +653,68 @@
         max-height: 95vh;
         width: 95%;
         margin: auto;
+    }
+}
+
+/* ===== Admin Panel - Extra Small (480px) ===== */
+@media (max-width: 480px) {
+    .stats-grid-v2 {
+        grid-template-columns: 1fr;
+    }
+
+    .stat-card-v2 {
+        padding: 12px;
+    }
+
+    .admin-topbar {
+        height: 50px;
+        padding: 0 10px;
+    }
+
+    .page-title {
+        font-size: 13px;
+    }
+
+    .content-scroll {
+        padding: 10px;
+    }
+
+    .modal-form-v2 {
+        padding: 15px;
+    }
+
+    .modal-header-v2 {
+        padding: 15px;
+    }
+
+    .form-group-v2 input,
+    .form-group-v2 select,
+    .form-group-v2 textarea {
+        padding: 10px;
+        font-size: 13px;
+    }
+
+    .modal-footer-v2 {
+        flex-direction: column;
+    }
+
+    .submit-btn-v2,
+    .cancel-btn-v2 {
+        width: 100%;
+        text-align: center;
+    }
+
+    .admin-table-v2 {
+        min-width: 500px;
+    }
+
+    .add-btn-v2 {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .form-row-two-columns {
+        grid-template-columns: 1fr;
+        gap: 12px;
     }
 }

@@ -148,13 +148,14 @@ function AdminPanel({ aliens, schemaStatus, onAddAlien, onDeleteAlien, onUpdateA
     try {
       setUploading(true);
       const url = await storageService.uploadImage(file, 'aliens');
-      setFormData({ ...formData, image_url: url });
+      setFormData(prev => ({ ...prev, image_url: url }));
       toast.success('Main image uploaded');
     } catch (err) {
       console.error(err);
       toast.error('Upload failed');
     } finally {
       setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -166,13 +167,14 @@ function AdminPanel({ aliens, schemaStatus, onAddAlien, onDeleteAlien, onUpdateA
       setUploading(true);
       const uploadPromises = files.map(file => storageService.uploadImage(file, 'gallery'));
       const urls = await Promise.all(uploadPromises);
-      setFormData({ ...formData, gallery: [...formData.gallery, ...urls] });
+      setFormData(prev => ({ ...prev, gallery: [...prev.gallery, ...urls] }));
       toast.success(`${urls.length} images added to gallery`);
     } catch (err) {
       console.error(err);
       toast.error('Gallery upload failed');
     } finally {
       setUploading(false);
+      if (galleryInputRef.current) galleryInputRef.current.value = '';
     }
   };
 
@@ -184,21 +186,29 @@ function AdminPanel({ aliens, schemaStatus, onAddAlien, onDeleteAlien, onUpdateA
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.image_url) return toast.error('Please upload a main image');
+    console.log('[AdminPanel.handleSubmit] Form submission started');
+    if (!formData.image_url) {
+      console.log('[AdminPanel.handleSubmit] Validation failed: No image URL');
+      return toast.error('Please upload a main image');
+    }
     
     try {
+      console.log('[AdminPanel.handleSubmit] Setting uploading to true');
       setUploading(true);
       if (editingAlien) {
+        console.log('[AdminPanel.handleSubmit] Calling onUpdateAlien with:', formData);
         await onUpdateAlien(editingAlien.id, formData);
       } else {
+        console.log('[AdminPanel.handleSubmit] Calling onAddAlien with:', formData);
         await onAddAlien(formData);
       }
+      console.log('[AdminPanel.handleSubmit] Submission succeeded, closing modal');
       setIsModalOpen(false);
     } catch (err) {
-      console.error('[AdminPanel.handleSubmit]', err);
-      // Show the real error — not a generic one
+      console.error('[AdminPanel.handleSubmit] Error during submission:', err);
       toast.error(err?.message || 'Database sync failed', { duration: 8000 });
     } finally {
+      console.log('[AdminPanel.handleSubmit] Setting uploading to false');
       setUploading(false);
     }
   };
@@ -544,10 +554,10 @@ function AdminPanel({ aliens, schemaStatus, onAddAlien, onDeleteAlien, onUpdateA
               <form onSubmit={handleSubmit} className="modal-form-v2">
                 <div className="form-grid">
                   <div className="upload-section">
-                    <div className="main-upload" onClick={() => fileInputRef.current.click()}>
+                    <div className="main-upload" onClick={() => fileInputRef.current && fileInputRef.current.click()}>
                       {formData.image_url ? <img src={formData.image_url} alt="Main" /> : <div className="upload-placeholder"><Upload size={32} /><p>Upload DNA Image</p></div>}
-                      <input type="file" hidden ref={fileInputRef} onChange={handleImageUpload} accept="image/*" />
                     </div>
+                    <input type="file" hidden ref={fileInputRef} onChange={handleImageUpload} accept="image/*" onClick={(e) => e.stopPropagation()} />
                   </div>
 
                   <div className="inputs-section">
@@ -576,7 +586,7 @@ function AdminPanel({ aliens, schemaStatus, onAddAlien, onDeleteAlien, onUpdateA
                   <input type="text" value={formData.power} onChange={(e) => setFormData({...formData, power: e.target.value})} placeholder="e.g. Pyrokinesis, Flight" />
                 </div>
 
-                <div className="form-row-two-columns" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '20px' }}>
+                <div className="form-row-two-columns">
                   <div className="form-group-v2" style={{ marginBottom: 0 }}>
                     <label>Watch Assignment</label>
                     <select value={formData.watch_type} onChange={(e) => setFormData({...formData, watch_type: e.target.value})}>

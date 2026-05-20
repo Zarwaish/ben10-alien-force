@@ -590,6 +590,12 @@
     gap: 30px;
 }
 
+.ultimatrix-theme {
+    --primary: #ff3300;
+    --primary-dark: #cc2400;
+    --primary-glow: rgba(255, 51, 0, 0.45);
+}
+
 .alien-container {
     position: relative;
     width: 100%;
@@ -642,9 +648,17 @@
     filter: drop-shadow(0 0 30px var(--primary-glow));
 }
 
+.watch-controls {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    z-index: 10;
+}
+
 .light-omni {
     position: absolute;
-    bottom: 220px;
+    bottom: 50%;
     left: 50%;
     transform: translateX(-50%);
     width: 600px;
@@ -659,7 +673,7 @@
 }
 
 .light-omni.active {
-    height: 650px;
+    height: 60vh;
     opacity: 0.85;
 }
 
@@ -964,64 +978,127 @@
     color: var(--primary);
 }
 
-/* Mobile Fixes */
+/* ===== Mobile (768px and below) ===== */
 @media (max-width: 768px) {
-    .nav-container { padding: 0 20px; }
-    .hero { padding: 100px 20px; flex-direction: column; text-align: center; }
-    .hero-content h1 { font-size: 40px; }
-    .hero-image img { max-width: 300px; margin-top: 40px; }
-    .about { padding: 80px 20px; grid-template-columns: 1fr; gap: 40px; }
-    .about-card { padding: 30px; }
-    .alien-showcase { padding: 60px 20px; }
-    .aliens-grid { grid-template-columns: 1fr; }
-    .back-btn { top: 90px; left: 20px; }
-    .detail-content { flex-direction: column; padding: 40px 20px; gap: 40px; }
-    .detail-image {
-        width: 100%;
-        height: 300px;
-        max-width: 300px;
-        object-fit: contain;
+    /* Navbar */
+    .nav-container { padding: 0 15px; }
+
+    /* Hero */
+    .hero {
+        padding: 100px 20px 60px;
+        flex-direction: column;
+        text-align: center;
+        height: auto;
+        min-height: 100vh;
     }
-    .alien-entry-omni img {
-        width: 260px;
-        height: 260px;
+    .hero-content h1 { font-size: 36px; }
+    .hero-content p { font-size: 15px; margin-left: auto; margin-right: auto; }
+    .hero-image img { max-width: 280px; margin-top: 30px; }
+    .cta-group { justify-content: center; flex-wrap: wrap; }
+    .cta-button { padding: 12px 28px; font-size: 12px; }
+
+    /* About */
+    .about {
+        padding: 60px 20px;
+        grid-template-columns: 1fr;
+        gap: 30px;
     }
-    .light-omni {
-        width: 100vw !important;
-        bottom: 150px !important;
-    }
-    .light-omni.active {
-        height: 45vh !important;
-    }
-    .watch-omni {
-        width: 160px !important;
+    .about-card { padding: 25px; }
+    .about-card h2 { font-size: 28px; }
+    .about-card p { font-size: 15px; }
+
+    /* Showcase */
+    .alien-showcase { padding: 50px 15px; }
+    .section-title { font-size: 32px; }
+    .section-subtitle { font-size: 14px; }
+    .aliens-grid { grid-template-columns: 1fr; gap: 20px; }
+
+    /* Device View (Watch Alignment) */
+    .device-view {
+        height: auto;
+        min-height: 100vh;
+        padding: 80px 0 30px;
+        gap: 10px;
     }
     .status {
-        top: 60px !important;
-        font-size: 16px !important;
-    }
-    .device-view {
-        height: auto !important;
-        min-height: 100vh !important;
-        padding: 80px 0 !important;
+        position: relative;
+        top: auto;
+        font-size: 14px;
+        padding: 0 20px;
     }
     .alien-container {
-        height: 38vh !important;
+        height: 35vh;
+        min-height: 200px;
     }
+    .alien-entry-omni img {
+        width: 220px;
+        height: 220px;
+    }
+    .watch-omni {
+        width: 160px;
+    }
+    .light-omni {
+        width: 350px;
+    }
+    .light-omni.active {
+        height: 40vh;
+    }
+    .controls-hint {
+        position: relative;
+        bottom: auto;
+        margin-top: 10px;
+        font-size: 10px;
+    }
+    .mobile-nav-btn {
+        width: 44px;
+        height: 44px;
+    }
+    .mobile-nav-btn.left { left: 8px; }
+    .mobile-nav-btn.right { right: 8px; }
+
+    /* Detail View */
+    .alien-detail-view { padding: 100px 20px 40px; }
+    .back-btn { top: 85px; left: 15px; font-size: 12px; padding: 8px 14px; }
+    .detail-content {
+        flex-direction: column;
+        gap: 30px;
+        text-align: center;
+        padding: 0 10px;
+    }
+    .detail-image {
+        width: 100%;
+        height: auto;
+        max-width: 280px;
+    }
+    .detail-name { font-size: 36px; }
+    .detail-desc { font-size: 16px; }
+    .detail-divider { margin: 0 auto 20px; }
+    .ability-list { justify-content: center; }
+
+    /* Auth */
     .auth-card {
-        padding: 30px 20px !important;
-        max-width: 92vw !important;
-        border-radius: 20px !important;
+        padding: 30px 20px;
+        max-width: 95vw;
+        border-radius: 20px;
     }
-    .auth-header h2 {
-        font-size: 20px !important;
-    }
+    .auth-header h2 { font-size: 20px; }
+    .auth-icon { width: 60px; height: 60px; }
+    .ring-1 { width: 280px; height: 280px; }
+    .ring-2 { width: 380px; height: 380px; }
+    .ring-3 { width: 480px; height: 480px; }
+
+    /* Stats */
     .home-stats {
-        grid-template-columns: 1fr !important;
-        gap: 20px !important;
-        padding: 20px !important;
-        margin-top: 40px !important;
+        grid-template-columns: 1fr;
+        gap: 15px;
+        padding: 20px;
+        margin-top: 30px;
     }
+    .stat-value { font-size: 24px; }
+
+    /* Profile */
+    .profile-card { padding: 25px 20px; max-width: 95vw; }
+    .profile-container { padding: 100px 15px; }
 }
 
 .gallery-btn {
@@ -1425,19 +1502,28 @@
     text-shadow: 0 0 10px var(--primary-glow);
 }
 
-/* Responsive */
+/* ===== Tablet (1024px and below) ===== */
 @media (max-width: 1024px) {
-    nav { padding: 20px 40px; }
-    .hero { flex-direction: column; text-align: center; padding-top: 150px; height: auto; }
+    .hero {
+        flex-direction: column;
+        text-align: center;
+        padding: 120px 40px 60px;
+        height: auto;
+        min-height: 100vh;
+    }
     .hero-content p { margin-left: auto; margin-right: auto; }
     .hero-content h1 { font-size: 48px; }
     .cta-group { justify-content: center; }
-    .about { grid-template-columns: 1fr; padding: 100px 40px; }
+    .about { grid-template-columns: 1fr; padding: 80px 40px; gap: 50px; }
     .about-image { order: -1; }
-    .alien-showcase { padding: 80px 40px; }
-    .aliens-grid { grid-template-columns: 1fr; }
-    .home-stats { grid-template-columns: 1fr; gap: 20px; }
-    .detail-content { flex-direction: column; text-align: center; gap: 50px; }
+    .alien-showcase { padding: 60px 30px; }
+    .aliens-grid { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+    .home-stats { grid-template-columns: repeat(2, 1fr); gap: 20px; }
+    .detail-content { flex-direction: column; text-align: center; gap: 40px; }
+    .detail-name { font-size: 48px; }
+    .alien-entry-omni img { width: 350px; height: 350px; }
+    .watch-omni { width: 220px; }
+    .light-omni { width: 500px; }
 }
 
 
@@ -1475,14 +1561,42 @@
     right: 20px;
 }
 
-/* Make them slightly larger on mobile for easier tapping */
-@media (max-width: 768px) {
-    .mobile-nav-btn {
-        width: 50px;
-        height: 50px;
+/* ===== Extra Small Screens (480px and below) ===== */
+@media (max-width: 480px) {
+    .hero-content h1 { font-size: 28px; }
+    .hero-content p { font-size: 14px; }
+    .cta-button {
+        padding: 10px 20px;
+        font-size: 11px;
+        width: 100%;
+        text-align: center;
     }
-    .mobile-nav-btn.left { left: 10px; }
-    .mobile-nav-btn.right { right: 10px; }
+    .cta-group { flex-direction: column; align-items: stretch; }
+
+    .alien-entry-omni img { width: 180px; height: 180px; }
+    .watch-omni { width: 120px; }
+    .light-omni { width: 250px; }
+    .status { font-size: 12px; }
+    .alien-container { height: 30vh; min-height: 180px; }
+
+    .alien-card { padding: 20px; }
+    .alien-card-image { height: 180px; }
+    .section-title { font-size: 24px; }
+    .section-subtitle { font-size: 13px; }
+
+    .detail-name { font-size: 28px; }
+    .detail-desc { font-size: 14px; line-height: 1.6; }
+    .about-card h2 { font-size: 22px; }
+    .about-card p { font-size: 14px; }
+
+    .auth-card { padding: 25px 15px; }
+    .auth-header h2 { font-size: 18px; letter-spacing: 1px; }
+    .input-wrapper input { padding: 12px 15px 12px 40px; font-size: 13px; }
+    .omnitrix-btn { padding: 14px; font-size: 13px; }
+
+    .profile-card { padding: 20px 15px; }
+    .avatar-wrapper { width: 90px; height: 90px; }
+    .avatar-placeholder { font-size: 30px; }
 }
 
 .auth-divider {
