@@ -33,7 +33,7 @@ if (!url || !anonKey) {
     throw new Error(errMsg);
   }
 } else {
-  supabase = createClient(url, anonKey);
+  supabase = createClient(url, anonKey, { auth: { persistSession: true } });
 }
 
 export { supabase };

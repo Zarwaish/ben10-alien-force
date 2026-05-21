@@ -1,7 +1,7 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import GlobalLoader from './GlobalLoader';
+
 
 /**
  * Guard component that ensures the wrapped element is only rendered when the
@@ -15,18 +15,24 @@ import GlobalLoader from './GlobalLoader';
 export default function ProtectedRoute({ children, requireAuth = true, requiredRole }) {
   const { user, loading, isAdmin } = useAuth();
 
+  // Show a loading spinner while auth state is being determined
   if (loading) {
-    // Show a global spinner while auth state is being resolved
-    return <GlobalLoader />;
+    return (
+      <div className="global-loader">
+        <div className="omnitrix-spinner" />
+        <span>Initializing DNA...</span>
+      </div>
+    );
   }
 
+  // Not logged in – redirect to the login page
   if (requireAuth && !user) {
-    // Not logged in – redirect to the login page
     return <Navigate to="/login" replace />;
   }
 
-  if (requiredRole && requiredRole !== 'admin' && isAdmin) {
-    // Role mismatch – for now only admin is a special case
+  // Role mismatch – restrict access if a specific role is required
+  if (requiredRole && requiredRole === 'admin' && !isAdmin) {
+    // Role mismatch – admin required but user is not admin
     return <Navigate to="/" replace />;
   }
 
