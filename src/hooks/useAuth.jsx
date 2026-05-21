@@ -1,9 +1,14 @@
-import { useState, useEffect, createContext, useContext, useRef } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { toast } from 'react-hot-toast';
 
-const AuthContext = createContext();
+// Utility for timestamped logs
+const now = () => new Date().toISOString();
 
+// Auth context
+export const AuthContext = createContext(null);
+
+// Provider component
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
@@ -14,34 +19,30 @@ export const AuthProvider = ({ children }) => {
     if (!uid) return;
     if (lastFetchedUid.current === uid) return;
     lastFetchedUid.current = uid;
-
     try {
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', uid)
         .single();
-
       let activeProfile = data;
-
       if (error) {
         const { data: sessionData } = await supabase.auth.getSession();
         if (sessionData.session) {
           const newProfileObj = {
             id: uid,
-            username: sessionData.session.user.user_metadata?.username || 
-                      sessionData.session.user.user_metadata?.full_name?.replace(/\s+/g, '').toLowerCase() || 
-                      sessionData.session.user.email.split('@')[0],
+            username:
+              sessionData.session.user.user_metadata?.username ||
+              sessionData.session.user.user_metadata?.full_name?.replace(/\s+/g, '').toLowerCase() ||
+              sessionData.session.user.email.split('@')[0],
             email: sessionData.session.user.email,
-            role: 'user'
+            role: 'user',
           };
-          
           const { data: newProfile, error: insertError } = await supabase
             .from('profiles')
             .upsert([newProfileObj])
             .select()
             .single();
-
           if (!insertError && newProfile) {
             activeProfile = newProfile;
           } else {
@@ -50,129 +51,68 @@ export const AuthProvider = ({ children }) => {
           }
         }
       }
-
-      if (activeProfile) {
-        setProfile(activeProfile);
-      }
+      if (activeProfile) setProfile(activeProfile);
     } catch (err) {
       console.error('Error fetching profile:', err);
     }
   };
 
+  // Initialize auth on mount
+  console.log(`[Auth] Hook init start ${now()}`);
   useEffect(() => {
-    // 1. Fallback Timeout: Force-disable loading screen after 2.5 seconds no matter what
-    const fallbackTimeout = setTimeout(() => {
-      console.warn('Auth initialization timed out, forcing loading screen to close.');
-      setLoading(false);
-    }, 2500);
-
-    // Clear out any old fake Google or non-persistent sessions to prevent bypasses
+    console.log(`[Auth] Starting session restoration ${now()}`);
+    // Clear any stale local sessions
     try {
       const localSessionStr = localStorage.getItem('local_session');
-      if (localSessionStr) {
-        localStorage.removeItem('local_session');
-      }
+      if (localSessionStr) localStorage.removeItem('local_session');
     } catch (e) {
-      console.warn('Could not access localStorage:', e);
+      console.warn('Auth: localStorage clear error', e);
     }
 
-    // Check active sessions and sets the user
-    try {
-      supabase.auth.getSession()
-        .then(({ data }) => {
-          const session = data?.session || null;
-          if (session) {
-            setUser(session.user);
-            fetchProfile(session.user.id);
-          } else {
-            // Fallback to local admin session ONLY
-            try {
-              const localAdmin = localStorage.getItem('admin_session');
-              if (localAdmin) {
-                const parsed = JSON.parse(localAdmin);
-                setUser(parsed.user);
-                setProfile(parsed.profile);
-              }
-            } catch (adminErr) {
-              console.warn('Error reading admin session:', adminErr);
-            }
-          }
-        })
-        .catch(err => {
-          console.error('Error fetching Supabase session:', err);
-        })
-        .finally(() => {
-          clearTimeout(fallbackTimeout);
-          setLoading(false);
-        });
-    } catch (err) {
-      console.error('Error during getSession setup:', err);
-      clearTimeout(fallbackTimeout);
-      setLoading(false);
-    }
-
-    // Listen for changes on auth state
-    let subscription = null;
-    try {
-      const res = supabase.auth.onAuthStateChange(async (_event, session) => {
-        try {
-          if (session) {
-            setUser(session.user);
-            await fetchProfile(session.user.id);
-          } else {
-            try {
-              const localAdmin = localStorage.getItem('admin_session');
-              if (localAdmin) {
-                const parsed = JSON.parse(localAdmin);
-                setUser(parsed.user);
-                setProfile(parsed.profile);
-              } else {
-                setUser(null);
-                setProfile(null);
-              }
-            } catch (adminErr) {
-              console.warn('Error checking local admin session in listener:', adminErr);
-              setUser(null);
-              setProfile(null);
-            }
-          }
-        } catch (innerErr) {
-          console.error('Error in auth state change listener callback:', innerErr);
-        } finally {
-          clearTimeout(fallbackTimeout);
-          setLoading(false);
+    // Get current session from Supabase
+    supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        const session = data?.session || null;
+        console.log(`[Auth] getSession result ${now()}`, session);
+        if (session) {
+          setUser(session.user);
+          fetchProfile(session.user.id);
+        } else {
+          setUser(null);
+          setProfile(null);
         }
+      })
+      .catch(err => {
+        console.error(`[Auth] getSession error ${now()}`, err);
+      })
+      .finally(() => {
+        console.log(`[Auth] Session restoration finished ${now()}`);
+        setLoading(false);
       });
-      subscription = res?.data?.subscription || res?.subscription;
-    } catch (err) {
-      console.error('Error setting up onAuthStateChange listener:', err);
-      clearTimeout(fallbackTimeout);
-      setLoading(false);
-    }
 
-    return () => {
-      clearTimeout(fallbackTimeout);
-      if (subscription && typeof subscription.unsubscribe === 'function') {
-        subscription.unsubscribe();
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log(`[Auth] onAuthStateChange ${now()} event=${event}`, session);
+      if (session) {
+        setUser(session.user);
+        fetchProfile(session.user.id);
+      } else {
+        setUser(null);
+        setProfile(null);
       }
+      setLoading(false);
+    });
+    return () => {
+      if (subscription && typeof subscription.unsubscribe === 'function') subscription.unsubscribe();
     };
   }, []);
 
+  // Auth actions
   const login = async (email, password) => {
     const cleanEmail = email.toLowerCase().trim();
-    if (cleanEmail.includes('admin') && password === 'dullgamerz321') {
-      const adminSession = {
-        user: { email: cleanEmail, id: 'admin-id' },
-        profile: { id: 'admin-id', username: 'admin', email: cleanEmail, role: 'admin' }
-      };
-      localStorage.setItem('admin_session', JSON.stringify(adminSession));
-      setUser(adminSession.user);
-      setProfile(adminSession.profile);
-      return adminSession;
-    }
-
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      const { data, error } = await supabase.auth.signInWithPassword({ email: cleanEmail, password });
       if (error) throw error;
       return data;
     } catch (err) {
@@ -184,18 +124,13 @@ export const AuthProvider = ({ children }) => {
   const signup = async (email, password, username) => {
     const cleanEmail = email.toLowerCase().trim();
     const coderUsername = username || cleanEmail.split('@')[0];
-
     try {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: {
-          data: { username: coderUsername }
-        }
+        options: { data: { username: coderUsername } },
       });
       if (error) throw error;
-
-      // Create a profile row directly in Supabase profiles table
       if (data?.user) {
         try {
           await supabase.from('profiles').insert([
@@ -203,14 +138,13 @@ export const AuthProvider = ({ children }) => {
               id: data.user.id,
               username: coderUsername,
               email: cleanEmail,
-              role: 'user'
-            }
+              role: 'user',
+            },
           ]);
         } catch (dbErr) {
           console.warn('Direct profile insert failed:', dbErr);
         }
       }
-
       return data;
     } catch (err) {
       console.warn('Supabase signup failed:', err);
@@ -221,9 +155,7 @@ export const AuthProvider = ({ children }) => {
   const loginWithGoogle = async () => {
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: {
-        redirectTo: window.location.origin
-      }
+      options: { redirectTo: window.location.origin },
     });
     if (error) throw error;
     return data;
@@ -245,21 +177,13 @@ export const AuthProvider = ({ children }) => {
 
   const updateProfile = async (updates) => {
     if (localStorage.getItem('admin_session')) {
-      // Local profile update for admin
       const updatedProfile = { ...profile, ...updates };
       setProfile(updatedProfile);
       localStorage.setItem('admin_session', JSON.stringify({ user, profile: updatedProfile }));
       toast.success('Profile updated locally!');
       return updatedProfile;
     }
-
-    const { data, error } = await supabase
-      .from('profiles')
-      .update(updates)
-      .eq('id', user.id)
-      .select()
-      .single();
-
+    const { data, error } = await supabase.from('profiles').update(updates).eq('id', user.id).select().single();
     if (error) throw error;
     setProfile(data);
     toast.success('Profile updated!');
@@ -269,14 +193,12 @@ export const AuthProvider = ({ children }) => {
   // Listen for profile deletion to instantly kick users
   useEffect(() => {
     if (!user?.id || user.id === 'admin-id') return;
-    
     const channel = supabase.channel(`public:profiles:delete:${user.id}`)
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'profiles', filter: `id=eq.${user.id}` }, () => {
         toast.error('Your access has been revoked by an administrator.');
         logout();
       })
       .subscribe();
-      
     return () => {
       supabase.removeChannel(channel);
     };
@@ -292,12 +214,13 @@ export const AuthProvider = ({ children }) => {
     loginWithGoogle,
     logout,
     updateProfile,
-    refreshProfile: () => fetchProfile(user?.id)
+    refreshProfile: () => fetchProfile(user?.id),
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
+// Hook for consuming auth
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {

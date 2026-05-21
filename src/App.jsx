@@ -14,6 +14,7 @@ import AdminPanel from './components/AdminPanel';
 import DeviceSelector from './components/DeviceSelector';
 import UserProfile from './components/UserProfile';
 import ErrorBoundary from './components/ErrorBoundary';
+import AuthRequired from './components/AuthRequired';
 
 // Hooks & Services
 import { useAliens } from './hooks/useAliens';
@@ -63,13 +64,13 @@ function App() {
         return user ? (
           <DeviceSelector key="omnitrix" type="omnitrix" onTransform={handleTransform} aliens={aliens} />
         ) : (
-          <Login setView={setView} targetView="omnitrix" onLoginSuccess={() => setView('omnitrix')} />
+          <AuthRequired targetView="omnitrix" setView={setView} />
         );
       case 'ultimatrix':
         return user ? (
           <DeviceSelector key="ultimatrix" type="ultimatrix" onTransform={handleTransform} aliens={aliens} />
         ) : (
-          <Login setView={setView} targetView="ultimatrix" onLoginSuccess={() => setView('ultimatrix')} />
+          <AuthRequired targetView="ultimatrix" setView={setView} />
         );
       case 'signup':
         return <SignUp setView={setView} />;

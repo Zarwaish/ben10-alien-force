@@ -1,75 +1,39 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://lmpvugbgdnrerucecgze.supabase.co';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_xGzUSWFUkcYGA0IwIJJjbg_elILikk0';
+// Validate required env vars – if missing, throw a clear error in production
+const url = import.meta.env.VITE_SUPABASE_URL;
+const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// Check if credentials are valid URLs/strings to prevent createClient from throwing
-const isValidConfig = supabaseUrl && 
-                     supabaseAnonKey && 
-                     supabaseUrl.startsWith('http');
+const isDev = import.meta.env.DEV && typeof window !== 'undefined' && window.location.hostname === 'localhost';
 
-if (!isValidConfig) {
-  console.warn('Supabase credentials missing or invalid. Please check your .env file.');
-}
+let supabase;
 
-// Export a safe instance or a dummy to prevent top-level crashes
-export const supabase = isValidConfig 
-  ? createClient(supabaseUrl, supabaseAnonKey)
-  : {
+if (!url || !anonKey) {
+  if (isDev) {
+    console.warn('Supabase env vars missing – using dev mock client');
+    // Minimal mock client for local development without real Supabase
+    supabase = {
       auth: {
         getSession: () => Promise.resolve({ data: { session: null }, error: null }),
-        onAuthStateChange: () => ({ 
-          data: { subscription: { unsubscribe: () => {} } } 
-        }),
-        signInWithPassword: () => Promise.resolve({ data: null, error: new Error('Supabase not configured. Add credentials to .env') }),
-        signUp: () => Promise.resolve({ data: null, error: new Error('Supabase not configured. Add credentials to .env') }),
-        signOut: () => Promise.resolve(),
+        onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+        signInWithPassword: () => Promise.resolve({ data: null, error: new Error('Supabase not configured – set .env') }),
+        signUp: () => Promise.resolve({ data: null, error: new Error('Supabase not configured – set .env') }),
+        signOut: () => Promise.resolve()
       },
-      from: () => {
-        const emptyResult = Promise.resolve({ data: [], error: null });
-        const singleResult = Promise.resolve({ data: null, error: null });
-        const chain = {
-          select: () => chain,
-          insert: () => chain,
-          update: () => chain,
-          delete: () => chain,
-          upsert: () => chain,
-          eq: () => chain,
-          neq: () => chain,
-          gt: () => chain,
-          gte: () => chain,
-          lt: () => chain,
-          lte: () => chain,
-          like: () => chain,
-          ilike: () => chain,
-          is: () => chain,
-          in: () => chain,
-          contains: () => chain,
-          containedBy: () => chain,
-          filter: () => chain,
-          match: () => chain,
-          limit: () => chain,
-          range: () => chain,
-          order: () => chain,
-          single: () => singleResult,
-          maybeSingle: () => singleResult,
-          then: (resolve) => emptyResult.then(resolve),
-        };
-        return chain;
-      },
-      storage: {
-        from: () => ({
-          upload: () => Promise.resolve({ data: null, error: new Error('Supabase not configured') }),
-          getPublicUrl: () => ({ data: { publicUrl: '' } }),
-        })
-      },
-      channel: () => {
-        const mockChannel = {
-          on: () => mockChannel,
-          subscribe: () => mockChannel
-        };
-        return mockChannel;
-      },
+      from: () => ({
+        select: () => ({ then: (cb) => cb({ data: [], error: null }) }),
+        insert: () => ({ select: () => ({ then: (cb) => cb({ data: [], error: null }) }) })
+      }),
+      channel: () => ({ on: () => ({ subscribe: () => {} }) }),
       removeChannel: () => {}
     };
+  } else {
+    const errMsg = 'Supabase configuration missing or invalid. Please provide VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env.';
+    console.error(errMsg);
+    throw new Error(errMsg);
+  }
+} else {
+  supabase = createClient(url, anonKey);
+}
 
+export { supabase };

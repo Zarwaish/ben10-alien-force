@@ -161,8 +161,9 @@ function DeviceSelector({ type, onTransform, aliens }) {
       <div className={`transformation-flash ${isTransforming ? 'active' : ''}`}></div>
 
       <div className="status">
+// Updated status handling
         {displayData.length === 0 
-          ? "DNA DATABASE EMPTY" 
+          ? "No aliens available" 
           : isTransforming 
             ? "TRANSFORMING..." 
             : (isActive ? `${type.toUpperCase()} ACTIVATED` : `CLICK ${type.toUpperCase()} TO ACTIVATE`)}

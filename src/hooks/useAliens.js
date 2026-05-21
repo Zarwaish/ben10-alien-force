@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext } from 'react';
+import { AuthContext } from '../hooks/useAuth.jsx';
 import { alienService } from '../services/alienService';
 import { toast } from 'react-hot-toast';
 import { supabase } from '../lib/supabase';
@@ -24,19 +25,35 @@ export function useAliens() {
     }
   };
 
+  const { loading: authLoading } = useContext(AuthContext);
+
+  // Fetch aliens after auth is ready
   useEffect(() => {
-    fetchAliens();
+    if (!authLoading) {
+      fetchAliens();
+    }
+  }, [authLoading]);
 
-    // Setup Supabase Realtime Subscription for Global Syncing
-    const channel = supabase
-      .channel('public:aliens')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'aliens' }, (payload) => {
-        fetchAliens(true); // Re-fetch the updated list silently
-      })
-      .subscribe();
-
+  // Subscribe to real‑time updates on "aliens" table (once on mount)
+  useEffect(() => {
+    let channel;
+    try {
+      if (supabase && typeof supabase.channel === 'function') {
+        channel = supabase
+          .channel('public:aliens-changes')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'aliens' }, () => {
+            // Re‑fetch silently to update UI across clients
+            fetchAliens(true);
+          })
+          .subscribe();
+      }
+    } catch (err) {
+      console.warn('Realtime aliens subscription failed:', err);
+    }
     return () => {
-      supabase.removeChannel(channel);
+      if (channel && supabase && typeof supabase.removeChannel === 'function') {
+        supabase.removeChannel(channel);
+      }
     };
   }, []);
 
