@@ -11,6 +11,8 @@
   align-items: center;
   position: relative;
   overflow: hidden;
+  background: transparent !important;
+  background-color: transparent !important;
 }
 
 /* Watch control (Omnitrix) fixed at bottom center */
@@ -22,29 +24,44 @@
   z-index: 1000;
 }
 
-/* Alien container centered */
+/* Alien container absolutely positioned just above watch */
 .alien-center {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-end;
   width: 100%;
   text-align: center;
-  position: relative;
+  position: absolute;
+  bottom: 220px; /* Positions alien directly above the watch control */
+  left: 50%;
+  transform: translateX(-50%);
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+  outline: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  z-index: 500;
 }
 
 .alien-image-large {
   width: 350px;
   height: 350px;
-  object-fit: contain;
+  object-fit: contain !important;
   display: block;
-  margin-top: 70px; /* lower alien within beam */
-// duplicate margin-top removed
+  margin: 0 !important;
+  padding: 0 !important;
   position: relative;
   z-index: 5;
-  background: none !important;
+  background: transparent !important;
+  background-color: transparent !important;
   box-shadow: none !important;
   filter: none !important;
+  mix-blend-mode: normal !important;
+  border: none !important;
+  outline: none !important;
 }
 
 /* Remove any pseudo‑elements on image or container */

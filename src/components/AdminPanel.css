@@ -265,7 +265,8 @@
 
 .card-image {
   height: 200px;
-  background: rgba(0, 0, 0, 0.5);
+  background: transparent;
+  background-color: transparent;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -542,7 +543,8 @@
 }
 .trans-image {
   width: 120px;
-  background: #000;
+  background: transparent;
+  background-color: transparent;
 }
 .trans-image img {
   width: 100%;

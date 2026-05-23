@@ -40,45 +40,7 @@ export const storageService = {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onloadend = (e) => {
-          // If the file is not an image, resolve with raw data URL
-          if (!file.type.startsWith('image/')) {
-            resolve(reader.result);
-            return;
-          }
-
-          const img = new Image();
-          img.onload = () => {
-            const canvas = document.createElement('canvas');
-            const max_size = 800; // maximum width or height
-            let width = img.width;
-            let height = img.height;
-
-            if (width > height) {
-              if (width > max_size) {
-                height *= max_size / width;
-                width = max_size;
-              }
-            } else {
-              if (height > max_size) {
-                width *= max_size / height;
-                height = max_size;
-              }
-            }
-
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0, width, height);
-
-            // Compress to JPEG with 0.6 quality (reduces size by 90%+)
-            const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.6);
-            resolve(compressedDataUrl);
-          };
-          img.onerror = () => {
-            // Fallback to raw base64 if loading image fails
-            resolve(reader.result);
-          };
-          img.src = e.target.result;
+          resolve(reader.result);
         };
         reader.onerror = () => reject(new Error('Failed to read file locally'));
         reader.readAsDataURL(file);
