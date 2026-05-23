@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import './styles/App.css';
 
@@ -10,29 +10,44 @@ import AlienShowcase from './components/AlienShowcase';
 import AlienDetail from './components/AlienDetail';
 import SignUp from './components/SignUp';
 import Login from './components/Login';
-import AdminPanel from './components/AdminPanel';
-import DeviceSelector from './components/DeviceSelector';
-import UserProfile from './components/UserProfile';
-import ErrorBoundary from './components/ErrorBoundary';
 import AuthRequired from './components/AuthRequired';
+import WatchGallery from './components/WatchGallery';
+import RequireAdmin from './components/RequireAdmin';
+import AdminPanel from './components/AdminPanel';
 
-// Hooks & Services
-import { useAliens } from './hooks/useAliens';
+// Hooks
 import { useAuth } from './hooks/useAuth';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 function App() {
   const [view, setView] = useState('home');
   const [selectedAlien, setSelectedAlien] = useState(null);
-  
-  const { user, profile, loading: authLoading, isAdmin, logout } = useAuth();
-  const { 
-    aliens, 
-    loading: aliensLoading, 
-    schemaStatus,
-    addAlien, 
-    updateAlien, 
-    deleteAlien 
-  } = useAliens();
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const { user, loading: authLoading, logout, login, loginWithGoogle } = useAuth();
+
+  // Mapping of view names to URL paths
+  const viewPathMap = {
+    home: '/',
+    omnitrix: '/omnitrix',
+    ultimatrix: '/ultimatrix',
+    admin: '/admin',
+    signup: '/signup',
+    login: '/login',
+  };
+
+  // Sync view ↔ URL
+  useEffect(() => {
+    if (view !== 'home') {
+      const path = viewPathMap[view];
+      if (path && path !== location.pathname) {
+        navigate(path, { replace: true });
+      }
+    }
+  }, [view, navigate, location.pathname]);
+
+  // Removed automatic view sync from URL pathname to prevent route persistence on refresh
 
   const handleTransform = (alien) => {
     setSelectedAlien(alien);
@@ -43,32 +58,28 @@ function App() {
     switch (view) {
       case 'home':
         return (
-          <motion.div 
-            initial={{ opacity: 0 }} 
-            animate={{ opacity: 1 }} 
-            exit={{ opacity: 0 }}
-          >
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
             <Hero setView={setView} />
             <About />
-            <AlienShowcase 
-              aliens={(aliens || []).filter(a => {
-                if (!a) return false;
-                const w = a.watch_type || 'homepage';
-                return w === 'homepage' || w === 'both';
-              })} 
-              loading={aliensLoading} 
-            />
+            {/* Placeholder showcase – no data */}
+            <AlienShowcase aliens={[]} loading={false} />
           </motion.div>
+        );
+      case 'admin':
+        return (
+          <RequireAdmin>
+            <AdminPanel />
+          </RequireAdmin>
         );
       case 'omnitrix':
         return user ? (
-          <DeviceSelector key="omnitrix" type="omnitrix" onTransform={handleTransform} aliens={aliens} />
+          <WatchGallery type="omnitrix" onTransform={handleTransform} />
         ) : (
           <AuthRequired targetView="omnitrix" setView={setView} />
         );
       case 'ultimatrix':
         return user ? (
-          <DeviceSelector key="ultimatrix" type="ultimatrix" onTransform={handleTransform} aliens={aliens} />
+          <WatchGallery type="ultimatrix" onTransform={handleTransform} />
         ) : (
           <AuthRequired targetView="ultimatrix" setView={setView} />
         );
@@ -76,23 +87,6 @@ function App() {
         return <SignUp setView={setView} />;
       case 'login':
         return <Login setView={setView} onLoginSuccess={() => setView('home')} />;
-      case 'profile':
-        return <UserProfile />;
-      case 'admin':
-        return isAdmin ? (
-          <ErrorBoundary>
-            <AdminPanel 
-              aliens={aliens}
-              schemaStatus={schemaStatus}
-              onAddAlien={addAlien}
-              onUpdateAlien={updateAlien}
-              onDeleteAlien={deleteAlien}
-              onLogout={logout}
-            />
-          </ErrorBoundary>
-        ) : (
-          <Login setView={setView} targetView="admin" onLoginSuccess={() => setView('admin')} />
-        );
       case 'alien-detail':
         return <AlienDetail alien={selectedAlien} onBack={() => setView('home')} />;
       default:
@@ -100,20 +94,12 @@ function App() {
     }
   };
 
-  React.useEffect(() => {
-    if (user) {
-      const redirectView = sessionStorage.getItem('oauth_redirect_view');
-      if (redirectView) {
-        setView(redirectView);
-        sessionStorage.removeItem('oauth_redirect_view');
-      }
-    }
-  }, [user]);
+  // Removed OAuth redirect persistence logic to avoid storing route state
 
   if (authLoading) {
     return (
       <div className="global-loader">
-        <div className="omnitrix-spinner"></div>
+        <div className="omnitrix-spinner" />
         <span>Initializing DNA...</span>
       </div>
     );
@@ -121,22 +107,16 @@ function App() {
 
   return (
     <div className="App">
-      <div className="bg-glow glow-1"></div>
-      <div className="bg-glow glow-2"></div>
-      
-      <Navbar 
-        currentView={view} 
-        setView={setView} 
-        currentUser={profile} 
-        setLogout={logout} 
-      />
-
-      <AnimatePresence mode="wait">
-        {renderView()}
-      </AnimatePresence>
+        {view !== 'admin' && (
+          <>
+            <div className="bg-glow glow-1" />
+            <div className="bg-glow glow-2" />
+          </>
+        )}
+      <Navbar currentView={view} setView={setView} currentUser={user} setLogout={logout} />
+      <AnimatePresence mode="wait">{renderView()}</AnimatePresence>
     </div>
   );
 }
 
 export default App;
-

@@ -15,14 +15,22 @@ function Login({ setView, onLoginSuccess, targetView }) {
     setLoading(true);
     
     try {
-      await login(email, password);
-      toast.success('Access Granted. Welcome back, Agent.');
-      if (onLoginSuccess) onLoginSuccess();
-    } catch (error) {
-      toast.error(error.message || 'Login failed');
-    } finally {
-      setLoading(false);
-    }
+        const loggedUser = await login(email, password);
+        toast.success('Access Granted. Welcome back, Agent.');
+        // Determine redirect after login
+        let redirect = sessionStorage.getItem('oauth_redirect_view') || 'home';
+        
+        if (loggedUser?.email === 'admin@gmail.com') {
+          redirect = 'admin';
+        }
+
+        sessionStorage.removeItem('oauth_redirect_view');
+        setView(redirect);
+      } catch (error) {
+        toast.error(error.message || 'Login failed');
+      } finally {
+        setLoading(false);
+      }
   };
 
   const handleGoogleLogin = async () => {

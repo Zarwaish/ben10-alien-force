@@ -133,6 +133,37 @@
     color: #000;
 }
 
+.admin-panel-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: linear-gradient(135deg, rgba(0, 255, 0, 0.15), rgba(0, 255, 0, 0.05));
+    border: 1px solid var(--primary);
+    color: var(--primary);
+    padding: 8px 16px;
+    border-radius: var(--radius-full);
+    font-family: var(--font-heading);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    box-shadow: 0 0 12px rgba(0, 255, 0, 0.15);
+}
+
+.admin-panel-btn:hover {
+    background: var(--primary);
+    color: #000;
+    box-shadow: 0 0 25px rgba(0, 255, 0, 0.4);
+    transform: translateY(-2px);
+}
+
+.admin-mobile-item {
+    color: var(--primary) !important;
+    font-weight: 800 !important;
+}
+
 .user-info-v2 {
     display: flex;
     align-items: center;
@@ -1623,3 +1654,53 @@
 .auth-divider:not(:empty)::after {
     margin-left: .8em;
 }
+
+/* Auth Required Modal Page */
+.auth-required-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    margin-top: 20px;
+}
+
+.auth-required-desc {
+    color: var(--text-muted);
+    font-size: 14px;
+    line-height: 1.6;
+    margin-bottom: 25px;
+    text-align: center;
+}
+
+.auth-required-desc strong {
+    color: var(--primary);
+}
+
+.auth-required-btn-group {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+}
+
+.auth-outline-btn {
+    background: transparent;
+    color: var(--primary);
+    border: 1px solid var(--primary);
+    padding: 16px;
+    font-family: var(--font-heading);
+    font-weight: 900;
+    font-size: 15px;
+    letter-spacing: 2px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: 0.3s;
+    text-align: center;
+}
+
+.auth-outline-btn:hover {
+    background: rgba(0, 255, 0, 0.1);
+    box-shadow: 0 0 15px var(--primary-glow);
+    transform: translateY(-2px);
+}
+

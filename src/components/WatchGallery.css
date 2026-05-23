@@ -1,0 +1,74 @@
+/* WatchGallery.css - Transformation UI layout */
+
+/* Root container */
+.watch-gallery-root {
+  min-height: calc(100vh - 80px); /* account for navbar height */
+  padding-top: 100px;
+  padding-bottom: 180px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Watch control (Omnitrix) fixed at bottom center */
+.watch-control-wrapper {
+  position: fixed;
+  bottom: 35px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+}
+
+/* Alien container centered */
+.alien-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  text-align: center;
+  position: relative;
+}
+
+.alien-image-large {
+  width: 350px;
+  height: 350px;
+  object-fit: contain;
+  display: block;
+  margin-top: 70px; /* lower alien within beam */
+// duplicate margin-top removed
+  position: relative;
+  z-index: 5;
+  background: none !important;
+  box-shadow: none !important;
+  filter: none !important;
+}
+
+/* Remove any pseudo‑elements on image or container */
+.alien-image-large::before,
+.alien-image-large::after,
+.alien-center::before,
+.alien-center::after,
+.alien-beam::before,
+.alien-beam::after {
+  display: none !important;
+  content: none !important;
+}
+
+/* Single green inverted triangle beam behind alien */
+.alien-beam {
+  display: none !important;
+}
+
+/* Loader placeholder */
+.watch-gallery-loader,
+.error-msg,
+.empty-state {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+}

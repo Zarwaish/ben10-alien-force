@@ -1,637 +1,800 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
-import '../styles/AdminPanel.css';
-import { 
-  LayoutDashboard, 
-  Database, 
-  Users, 
-  LogOut, 
-  Plus, 
-  Trash2, 
-  Edit3, 
-  Upload, 
-  Search, 
-  Terminal,
-  Activity,
-  Shield,
-  Zap,
-  AlertTriangle,
-  CheckCircle2,
-  X,
-  Image as ImageIcon,
-  Loader2,
-  ExternalLink
-} from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { storageService } from '../services/storageService';
-import { toast } from 'react-hot-toast';
+import React, { useState, useEffect, useRef } from "react";
+import { adminAlienService, adminTransformationService } from "../services/adminService";
+import { motion, AnimatePresence } from "framer-motion";
+import { Plus, Trash2, Edit, Upload, X, Image as ImageIcon, Sparkles, RefreshCw, LayoutDashboard, Watch, Activity, Users, Shield, Power } from "lucide-react";
+import { toast } from "react-hot-toast";
+import "./AdminPanel.css";
 
-function AdminPanel({ aliens, schemaStatus, onAddAlien, onDeleteAlien, onUpdateAlien, onLogout }) {
-  const [activeTab, setActiveTab] = useState('dashboard');
-  const [isModalOpen, setIsModalOpen] = useState(false);
+export default function AdminPanel() {
+  const [activeTab, setActiveTab] = useState("dashboard");
+  const [aliens, setAliens] = useState([]);
+  const [transformations, setTransformations] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  // Forms visibility & state
+  const [isAdding, setIsAdding] = useState(false);
   const [editingAlien, setEditingAlien] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [uploading, setUploading] = useState(false);
-  const [registeredUsers, setRegisteredUsers] = useState([]);
+  const [editingTransformation, setEditingTransformation] = useState(null);
+
+  // File uploads
+  const [alienImageFile, setAlienImageFile] = useState(null);
+  const [transImageFile, setTransImageFile] = useState(null);
+  const [alienPreviewUrl, setAlienPreviewUrl] = useState("");
+  const [transPreviewUrl, setTransPreviewUrl] = useState("");
+
+  const alienFileInputRef = useRef(null);
+  const transFileInputRef = useRef(null);
+
+  // New templates
+  const initialAlienState = {
+    name: "",
+    description: "",
+    power: "",
+    type: "Classic",
+    watch_type: "omnitrix",
+    order_index: 0,
+    species: "",
+    planet: "",
+    image_url: "",
+    is_active: true
+  };
+
+  const initialTransState = {
+    name: "",
+    description: "",
+    alien_id: "",
+    image_url: ""
+  };
+
+  const [newAlien, setNewAlien] = useState({ ...initialAlienState });
+  const [newTransformation, setNewTransformation] = useState({ ...initialTransState });
+
+  // Load data from service
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const allAliens = await adminAlienService.list();
+      setAliens(allAliens || []);
+      const allTrans = await adminTransformationService.list();
+      setTransformations(allTrans || []);
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to load data. Supabase is initializing...");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*');
-        if (!error && data) {
-          setRegisteredUsers(data);
-        } else {
-          console.warn('Could not fetch profiles from Supabase:', error);
-          setRegisteredUsers([]);
-        }
-      } catch (err) {
-        console.warn('Error fetching profiles:', err);
-        setRegisteredUsers([]);
-      }
-    };
-
-    fetchUsers();
-
-    // Subscribe to real-time updates on public.profiles table
-    let channel;
-    try {
-      if (supabase && typeof supabase.channel === 'function') {
-        channel = supabase
-          .channel('schema-db-changes')
-          .on(
-            'postgres_changes',
-            {
-              event: '*',
-              schema: 'public',
-              table: 'profiles'
-            },
-            (payload) => {
-              fetchUsers();
-            }
-          )
-          .subscribe();
-      }
-    } catch (err) {
-      console.warn('Failed to subscribe to real-time user updates:', err);
-    }
-
-    return () => {
-      try {
-        if (channel && supabase && typeof supabase.removeChannel === 'function') {
-          supabase.removeChannel(channel);
-        }
-      } catch (err) {
-        console.warn('Failed to unsubscribe from real-time channel:', err);
-      }
-    };
+    loadData();
   }, []);
-  
-  const [formData, setFormData] = useState({
-    name: '',
-    type: 'Classic',
-    description: '',
-    power: '',
-    image_url: '',
-    gallery: [],
-    watch_type: 'omnitrix',
-    order_index: 1
-  });
 
-  const fileInputRef = useRef(null);
-  const galleryInputRef = useRef(null);
+  useEffect(() => {
+    // Reset inputs on tab change
+    setIsAdding(false);
+    setEditingAlien(null);
+    setEditingTransformation(null);
+    setAlienImageFile(null);
+    setTransImageFile(null);
+    setAlienPreviewUrl("");
+    setTransPreviewUrl("");
+  }, [activeTab]);
 
-  const stats = [
-    { label: 'DNA SAMPLES', value: (aliens || []).length, icon: <Database size={20} />, color: 'var(--primary)' },
-    { label: 'SYSTEM UPTIME', value: '99.9%', icon: <Activity size={20} />, color: 'var(--info)' },
-    { label: 'SECURITY LEVEL', value: '10', icon: <Shield size={20} />, color: 'var(--success)' },
-    { label: 'ACTIVE ALERTS', value: '0', icon: <Zap size={20} />, color: 'var(--warning)' }
-  ];
-
-  const handleOpenModal = (alien = null, defaultWatch = 'omnitrix') => {
-    if (alien) {
-      setEditingAlien(alien);
-      setFormData({
-        name: alien.name || '',
-        type: alien.type || 'Classic',
-        description: alien.description || '',
-        power: alien.power || '',
-        image_url: alien.image_url || '',
-        gallery: alien.gallery || [],
-        watch_type: alien.watch_type || 'homepage',
-        order_index: alien.order_index !== undefined && alien.order_index !== null ? Number(alien.order_index) : 1
-      });
-    } else {
-      setEditingAlien(null);
-      // Auto-increment order_index for the watch
-      const existingOfWatch = (aliens || []).filter(a => a && (a.watch_type === defaultWatch || a.watch_type === 'both' || (defaultWatch === 'homepage' && !a.watch_type)));
-      const maxIdx = existingOfWatch.reduce((max, a) => Math.max(max, Number(a.order_index) || 0), 0);
-      setFormData({
-        name: '',
-        type: 'Classic',
-        description: '',
-        power: '',
-        image_url: '',
-        gallery: [],
-        watch_type: defaultWatch,
-        order_index: maxIdx + 1
-      });
-    }
-    setIsModalOpen(true);
-  };
-
-  const handleImageUpload = async (e) => {
+  // File picker handlers
+  const handleAlienFileChange = (e) => {
     const file = e.target.files[0];
-    if (!file) return;
-
-    try {
-      setUploading(true);
-      const url = await storageService.uploadImage(file, 'aliens');
-      setFormData(prev => ({ ...prev, image_url: url }));
-      toast.success('Main image uploaded');
-    } catch (err) {
-      console.error(err);
-      toast.error('Upload failed');
-    } finally {
-      setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
+    if (file) {
+      setAlienImageFile(file);
+      setAlienPreviewUrl(URL.createObjectURL(file));
     }
   };
 
-  const handleGalleryUpload = async (e) => {
-    const files = Array.from(e.target.files);
-    if (files.length === 0) return;
-
-    try {
-      setUploading(true);
-      const uploadPromises = files.map(file => storageService.uploadImage(file, 'gallery'));
-      const urls = await Promise.all(uploadPromises);
-      setFormData(prev => ({ ...prev, gallery: [...prev.gallery, ...urls] }));
-      toast.success(`${urls.length} images added to gallery`);
-    } catch (err) {
-      console.error(err);
-      toast.error('Gallery upload failed');
-    } finally {
-      setUploading(false);
-      if (galleryInputRef.current) galleryInputRef.current.value = '';
+  const handleTransFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setTransImageFile(file);
+      setTransPreviewUrl(URL.createObjectURL(file));
     }
   };
 
-  const removeGalleryImage = (index) => {
-    const newGallery = [...formData.gallery];
-    newGallery.splice(index, 1);
-    setFormData({ ...formData, gallery: newGallery });
-  };
-
-  const handleSubmit = async (e) => {
+  // Add Alien
+  const handleAddAlien = async (e) => {
     e.preventDefault();
-    console.log('[AdminPanel.handleSubmit] Form submission started');
-    if (!formData.image_url) {
-      console.log('[AdminPanel.handleSubmit] Validation failed: No image URL');
-      return toast.error('Please upload a main image');
+    if (!newAlien.name) {
+      toast.error("Alien name is required.");
+      return;
     }
-    
+    setLoading(true);
     try {
-      console.log('[AdminPanel.handleSubmit] Setting uploading to true');
-      setUploading(true);
-      if (editingAlien) {
-        console.log('[AdminPanel.handleSubmit] Calling onUpdateAlien with:', formData);
-        await onUpdateAlien(editingAlien.id, formData);
-      } else {
-        console.log('[AdminPanel.handleSubmit] Calling onAddAlien with:', formData);
-        await onAddAlien(formData);
-      }
-      console.log('[AdminPanel.handleSubmit] Submission succeeded, closing modal');
-      setIsModalOpen(false);
+      const created = await adminAlienService.create(newAlien, alienImageFile);
+      setAliens((prev) => [...prev, created]);
+      setNewAlien({ ...initialAlienState });
+      setAlienImageFile(null);
+      setAlienPreviewUrl("");
+      setIsAdding(false);
+      toast.success(`${created.name} added successfully!`);
     } catch (err) {
-      console.error('[AdminPanel.handleSubmit] Error during submission:', err);
-      toast.error(err?.message || 'Database sync failed', { duration: 8000 });
+      console.error(err);
+      toast.error(err.message || "Failed to create alien.");
     } finally {
-      console.log('[AdminPanel.handleSubmit] Setting uploading to false');
-      setUploading(false);
+      setLoading(false);
     }
   };
 
-  const handleDelete = async (id, name) => {
-    if (window.confirm(`Permanently remove ${name} from archive?`)) {
-      try {
-        await onDeleteAlien(id);
-      } catch (err) {
-        toast.error('Deletion failed');
+  // Edit Alien
+  const handleEditAlien = async (e) => {
+    e.preventDefault();
+    if (!editingAlien.name) {
+      toast.error("Alien name is required.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const updated = await adminAlienService.update(editingAlien.id, editingAlien, alienImageFile);
+      setAliens((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
+      setEditingAlien(null);
+      setAlienImageFile(null);
+      setAlienPreviewUrl("");
+      toast.success(`${updated.name} updated successfully!`);
+    } catch (err) {
+      console.error(err);
+      toast.error(err.message || "Failed to update alien.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Delete Alien
+  const handleDeleteAlien = async (id, name) => {
+    if (!window.confirm(`Are you sure you want to delete "${name}"?`)) return;
+    setLoading(true);
+    try {
+      await adminAlienService.delete(id);
+      setAliens((prev) => prev.filter((a) => a.id !== id));
+      toast.success(`${name} deleted successfully.`);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to delete alien.");
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Toggle Active Alien (Local State)
+  const toggleAlienActive = (alien) => {
+    setAliens((prev) => prev.map(a => {
+      if(a.id === alien.id) {
+        toast.success(`${alien.name} ${!a.is_active ? 'enabled' : 'disabled'}.`);
+        return { ...a, is_active: !a.is_active };
       }
+      return a;
+    }));
+  };
+
+  // Add Transformation
+  const handleAddTransformation = async (e) => {
+    e.preventDefault();
+    if (!newTransformation.alien_id) {
+      toast.error("Please select an alien.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const parentAlien = aliens.find((a) => a.id === newTransformation.alien_id);
+      const name = newTransformation.name || `${parentAlien ? parentAlien.name : "Alien"} Form`;
+      
+      const created = await adminTransformationService.create({ ...newTransformation, name }, transImageFile);
+      setTransformations((prev) => [created, ...prev]);
+      setNewTransformation({ ...initialTransState });
+      setTransImageFile(null);
+      setTransPreviewUrl("");
+      setIsAdding(false);
+      toast.success("Transformation image added successfully!");
+    } catch (err) {
+      console.error(err);
+      toast.error(err.message || "Failed to add transformation.");
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleLogout = () => {
-    onLogout();
+  // Edit Transformation
+  const handleEditTransformation = async (e) => {
+    e.preventDefault();
+    if (!editingTransformation.alien_id) {
+      toast.error("Please select an alien.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const updated = await adminTransformationService.update(editingTransformation.id, editingTransformation, transImageFile);
+      setTransformations((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
+      setEditingTransformation(null);
+      setTransImageFile(null);
+      setTransPreviewUrl("");
+      toast.success("Transformation updated successfully!");
+    } catch (err) {
+      console.error(err);
+      toast.error(err.message || "Failed to update transformation.");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleDeleteUser = async (userId) => {
-    if (window.confirm('Are you sure you want to delete this user? Their access will be revoked instantly.')) {
-      try {
-        const { error } = await supabase
-          .from('profiles')
-          .delete()
-          .eq('id', userId);
+  // Delete Transformation
+  const handleDeleteTransformation = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this transformation image?")) return;
+    setLoading(true);
+    try {
+      await adminTransformationService.delete(id);
+      setTransformations((prev) => prev.filter((t) => t.id !== id));
+      toast.success("Transformation image deleted.");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to delete transformation.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Calculate Dashboard Stats
+  const omnitrixAliens = aliens.filter(a => a.watch_type === 'omnitrix' || a.watch_type === 'both');
+  const ultimatrixAliens = aliens.filter(a => a.watch_type === 'ultimatrix' || a.watch_type === 'both');
+  
+  // Render function for cards
+  const renderAlienCard = (alien) => (
+    <motion.div 
+      key={alien.id} 
+      className={`alien-admin-card ${alien.is_active === false ? 'disabled' : ''}`}
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      layout
+    >
+      <div className="card-image">
+        {alien.image_url ? (
+          <img src={alien.image_url} alt={alien.name} />
+        ) : (
+          <div className="no-image"><ImageIcon size={32} /></div>
+        )}
+        <span className="type-badge">{alien.type || "Classic"}</span>
+      </div>
+      
+      <div className="card-info">
+        <h3>{alien.name}</h3>
+        <p className="card-meta">
+          {alien.watch_type && <span><Watch size={10} style={{display:'inline'}}/> {alien.watch_type.toUpperCase()}</span>}
+        </p>
+        <p className="card-description">{alien.description || "No description set."}</p>
         
-        if (error) throw error;
-        toast.success('User deleted successfully.');
-        // Realtime subscription will fetchUsers() and update the list instantly
-      } catch (err) {
-        toast.error('Failed to delete user.');
-        console.error(err);
-      }
-    }
-  };
-
-  const renderAlienVaultTable = (watchType) => {
-    const isUlt = watchType === 'ultimatrix';
-    const isOmni = watchType === 'omnitrix';
-    const isHome = watchType === 'homepage';
-
-    const filtered = (aliens || []).filter(a => {
-      if (!a) return false;
-      const w = a.watch_type;
-      
-      let matchesWatch = false;
-      if (isHome) {
-        matchesWatch = w === 'homepage' || w === 'both' || !w;
-      } else if (isOmni) {
-        matchesWatch = w === 'omnitrix' || w === 'both';
-      } else if (isUlt) {
-        matchesWatch = w === 'ultimatrix' || w === 'both';
-      }
-      
-      const term = searchTerm.toLowerCase();
-      const matchesSearch = (a.name || '').toLowerCase().includes(term) ||
-                            (a.type && a.type.toLowerCase().includes(term));
-      return matchesWatch && matchesSearch;
-    });
-
-    const sorted = [...filtered].sort((a, b) => {
-      const idxA = a.order_index !== undefined && a.order_index !== null ? Number(a.order_index) : 999;
-      const idxB = b.order_index !== undefined && b.order_index !== null ? Number(b.order_index) : 999;
-      return idxA - idxB;
-    });
-
-    const titlePrefix = watchType === 'homepage' ? 'Homepage' : watchType === 'omnitrix' ? 'Omnitrix' : 'Ultimatrix';
-
-    return (
-      <div className="aliens-v2">
-        <div className="table-header-v2">
-          <div className="search-box-v2">
-            <Search size={18} />
-            <input type="text" placeholder={`Search ${titlePrefix} Vault...`} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-          </div>
-          <button className="add-btn-v2" onClick={() => handleOpenModal(null, watchType)}>
-            <Plus size={18} />
-            <span>ADD SAMPLE</span>
-          </button>
-        </div>
-
-        <div className="table-container-v2">
-          <table className="admin-table-v2">
-            <thead>
-              <tr>
-                <th style={{ width: '80px' }}>Slot</th>
-                <th>Preview</th>
-                <th>Species</th>
-                <th>Classification</th>
-                <th>Power Level</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sorted.length === 0 ? (
-                <tr>
-                  <td colSpan="6" style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
-                    No DNA samples recorded in this chamber. Click ADD SAMPLE to calibrate.
-                  </td>
-                </tr>
-              ) : (
-                sorted.map((alien) => (
-                  <tr key={alien.id}>
-                    <td>
-                      <input 
-                        type="number" 
-                        min="1"
-                        value={alien.order_index !== undefined && alien.order_index !== null ? alien.order_index : ''} 
-                        onChange={async (e) => {
-                          const val = parseInt(e.target.value) || 1;
-                          try {
-                            await onUpdateAlien(alien.id, { ...alien, order_index: val });
-                          } catch (err) {
-                            toast.error('Reordering failed');
-                          }
-                        }}
-                        style={{
-                          width: '65px',
-                          background: 'rgba(255, 255, 255, 0.03)',
-                          border: '1px solid var(--glass-border)',
-                          color: '#fff',
-                          borderRadius: '6px',
-                          padding: '6px',
-                          textAlign: 'center',
-                          fontFamily: 'monospace'
-                        }}
-                      />
-                    </td>
-                    <td><img src={alien.image_url} alt="" className="table-img" /></td>
-                    <td className="font-bold">{alien.name}</td>
-                    <td><span className="tag">{alien.type}</span></td>
-                    <td><span className="tag info">{alien.power || 'Unknown'}</span></td>
-                    <td>
-                      <div className="action-group">
-                        <button className="icon-btn edit" onClick={() => handleOpenModal(alien, watchType)}><Edit3 size={16} /></button>
-                        <button className="icon-btn delete" onClick={() => handleDelete(alien.id, alien.name)}><Trash2 size={16} /></button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+        <div className="card-powers">
+          {alien.power ? (
+            alien.power.split(',').map((p, idx) => (
+              <span key={idx} className="power-pill">{p.trim()}</span>
+            ))
+          ) : (
+            <span className="power-pill muted">No powers defined</span>
+          )}
         </div>
       </div>
-    );
-  };
+
+      <div className="card-actions">
+        <button className="action-btn toggle" onClick={() => toggleAlienActive(alien)} title="Enable/Disable">
+          <Power size={14} className={alien.is_active !== false ? 'active-icon' : 'inactive-icon'} />
+        </button>
+        <button className="action-btn edit" onClick={() => { setEditingAlien(alien); setIsAdding(false); }}>
+          <Edit size={14} />
+          <span>Edit</span>
+        </button>
+        <button className="action-btn delete" onClick={() => handleDeleteAlien(alien.id, alien.name)}>
+          <Trash2 size={14} />
+          <span>Delete</span>
+        </button>
+      </div>
+    </motion.div>
+  );
 
   return (
-    <div className="admin-container">
-      {/* Sidebar */}
-      <aside className="admin-sidebar-v2">
-        <div className="sidebar-brand">
-          <div className="brand-logo">
-            <Shield size={24} color="var(--primary)" />
+    <div className="admin-panel">
+      <div className="admin-container">
+        
+        {/* Header */}
+        <div className="admin-header">
+          <div className="title-area">
+            <h1 className="admin-title">
+              <Shield className="sparkle-icon" size={32} />
+              Plumber Headquarters
+            </h1>
+            <p className="admin-subtitle">Classified Alien & Transformation Control Interface</p>
           </div>
-          <div className="brand-text">
-            <h3>PLUMBER HQ</h3>
-            <span>Level 10 Command</span>
-          </div>
+          <button className="refresh-btn" onClick={loadData} title="Refresh Database Data">
+            <RefreshCw size={16} className={loading ? "spin" : ""} />
+            <span>Sync DB</span>
+          </button>
         </div>
 
-        <nav className="sidebar-nav">
-          <button className={activeTab === 'dashboard' ? 'active' : ''} onClick={() => setActiveTab('dashboard')}>
-            <LayoutDashboard size={20} />
-            <span>Operations Hub</span>
+        {/* Tab Navigation */}
+        <nav className="admin-tabs">
+          <button className={activeTab === "dashboard" ? "tab active" : "tab"} onClick={() => setActiveTab("dashboard")}>
+            <LayoutDashboard size={18} /> Dashboard
           </button>
-          <button className={activeTab === 'homepage' ? 'active' : ''} onClick={() => setActiveTab('homepage')}>
-            <Database size={20} color="#00bfff" />
-            <span>Homepage Vault</span>
+          <button className={activeTab === "omnitrix" ? "tab active" : "tab"} onClick={() => setActiveTab("omnitrix")}>
+            <Watch size={18} /> Omnitrix
           </button>
-          <button className={activeTab === 'omnitrix' ? 'active' : ''} onClick={() => setActiveTab('omnitrix')}>
-            <Database size={20} color="#00ff00" />
-            <span>Omnitrix Vault</span>
+          <button className={activeTab === "ultimatrix" ? "tab active" : "tab"} onClick={() => setActiveTab("ultimatrix")}>
+            <Watch size={18} /> Ultimatrix
           </button>
-          <button className={activeTab === 'ultimatrix' ? 'active' : ''} onClick={() => setActiveTab('ultimatrix')}>
-            <Database size={20} color="#ff3300" />
-            <span>Ultimatrix Vault</span>
-          </button>
-          <button className={activeTab === 'users' ? 'active' : ''} onClick={() => setActiveTab('users')}>
-            <Users size={20} />
-            <span>Registered Agents</span>
-          </button>
-          <button className={activeTab === 'terminal' ? 'active' : ''} onClick={() => setActiveTab('terminal')}>
-            <Terminal size={20} />
-            <span>System Log</span>
+          <button className={activeTab === "transformations" ? "tab active" : "tab"} onClick={() => setActiveTab("transformations")}>
+            <Activity size={18} /> Transformations
           </button>
         </nav>
 
-        <div className="sidebar-footer-v2">
-          <button className="logout-action" onClick={onLogout}>
-            <LogOut size={18} />
-            <span>Secure Exit</span>
-          </button>
-        </div>
-      </aside>
-
-      {/* Main Content */}
-      <main className="admin-main-v2">
-        <header className="admin-topbar">
-          <h2 className="page-title">
-            {activeTab === 'dashboard' && 'Operations Hub'}
-            {activeTab === 'homepage' && 'Homepage DNA Vault'}
-            {activeTab === 'omnitrix' && 'Omnitrix DNA Vault'}
-            {activeTab === 'ultimatrix' && 'Ultimatrix DNA Vault'}
-            {activeTab === 'users' && 'Registered Agents Directory'}
-            {activeTab === 'terminal' && 'System Console'}
-          </h2>
-          <div className="system-status">
-            <span className="pulse"></span>
-            CONNECTED
-          </div>
-        </header>
-
-        <div className="content-scroll">
-          {(!schemaStatus?.hasWatchColumns || !schemaStatus?.hasGalleryColumn) && (
-            <div style={{
-              background: 'rgba(239, 68, 68, 0.15)',
-              border: '1px solid rgb(239, 68, 68)',
-              borderRadius: '8px',
-              padding: '15px',
-              marginBottom: '20px',
-              color: '#f87171',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              fontSize: '14px',
-              lineHeight: '1.5'
-            }}>
-              <AlertTriangle size={24} style={{ flexShrink: 0 }} />
-              <div>
-                <strong>Supabase Schema Missing Columns!</strong> The database table <code>aliens</code> is missing the <code>watch_type</code>, <code>order_index</code>, or <code>gallery</code> columns. 
-                Please copy the queries in <code>supabase_updates.sql</code> and execute them in your Supabase SQL Editor to resolve filtering and layout anomalies.
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'dashboard' && (
-            <div className="dashboard-v2">
-              <div className="stats-grid-v2">
-                {stats.map((stat, idx) => (
-                  <motion.div key={idx} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="stat-card-v2">
-                    <div className="stat-icon-v2" style={{ color: stat.color, background: `${stat.color}15` }}>{stat.icon}</div>
-                    <div className="stat-info-v2">
-                      <span className="stat-label-v2">{stat.label}</span>
-                      <span className="stat-value-v2">{stat.value}</span>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-
-              <div className="activity-card">
-                <h3>System Integrity Logs</h3>
-                <div className="activity-timeline">
-                  <div className="timeline-item success">
-                    <CheckCircle2 size={16} />
-                    <div className="timeline-text"><p>Database synchronization active</p><span>Just now</span></div>
-                  </div>
-                  <div className="timeline-item info">
-                    <Activity size={16} />
-                    <div className="timeline-text"><p>{(aliens || []).length} alien samples verified</p><span>5 mins ago</span></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'homepage' && renderAlienVaultTable('homepage')}
-          {activeTab === 'omnitrix' && renderAlienVaultTable('omnitrix')}
-          {activeTab === 'ultimatrix' && renderAlienVaultTable('ultimatrix')}
-
-          {activeTab === 'terminal' && (
-            <div className="terminal-v2">
-              <div className="terminal-body">
-                <p><span>[SYS]</span> Storage Bucket: alien-assets/ CONNECTED</p>
-                <p><span>[SYS]</span> DNA Database: ONLINE</p>
-                <p><span>[USER]</span> Admin access verified.</p>
-                <p className="prompt">_</p>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'users' && (
-            <div className="aliens-v2">
-              <div className="table-header-v2">
-                <h3>Plumber Academy Enrolled Agents</h3>
-              </div>
-
-              <div className="table-container-v2">
-                <table className="admin-table-v2">
-                  <thead>
-                    <tr>
-                      <th>Agent Name</th>
-                      <th>Email Identification</th>
-                      <th>Role Command</th>
-                      <th>Database ID</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {registeredUsers.map((user) => (
-                      <tr key={user.id || Math.random().toString()}>
-                        <td className="font-bold">{user.username || (user.email || '').split('@')[0] || 'Unknown'}</td>
-                        <td>{user.email || 'N/A'}</td>
-                        <td>
-                          <span className={`tag ${user.role === 'admin' ? 'danger' : 'success'}`}>
-                            {user.role ? user.role.toUpperCase() : 'USER'}
-                          </span>
-                        </td>
-                        <td style={{fontFamily: 'monospace', fontSize: '11px', color: 'var(--text-muted)'}}>{user.id || 'N/A'}</td>
-                        <td>
-                          <div className="action-buttons">
-                            <button 
-                              className="action-btn delete" 
-                              onClick={() => handleDeleteUser(user.id)}
-                              disabled={user.role === 'admin'}
-                              title={user.role === 'admin' ? 'Cannot delete admin' : 'Delete User'}
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-        </div>
-      </main>
-
-      {/* Modal */}
-      <AnimatePresence>
-        {isModalOpen && (
-          <div className="modal-overlay-v2">
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="modal-v2">
-              <div className="modal-header-v2">
-                <h3>{editingAlien ? 'Update Genetic Archive' : 'Initialize New DNA Sample'}</h3>
-                <button onClick={() => setIsModalOpen(false)}><X size={20} /></button>
-              </div>
-
-              <form onSubmit={handleSubmit} className="modal-form-v2">
-                <div className="form-grid">
-                  <div className="upload-section">
-                    <div className="main-upload" onClick={() => fileInputRef.current && fileInputRef.current.click()}>
-                      {formData.image_url ? <img src={formData.image_url} alt="Main" /> : <div className="upload-placeholder"><Upload size={32} /><p>Upload DNA Image</p></div>}
-                    </div>
-                    <input type="file" hidden ref={fileInputRef} onChange={handleImageUpload} accept="image/*" onClick={(e) => e.stopPropagation()} />
-                  </div>
-
-                  <div className="inputs-section">
-                    <div className="form-group-v2">
-                      <label>Species Name</label>
-                      <input type="text" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} required />
-                    </div>
-                    <div className="form-group-v2">
-                      <label>Classification</label>
-                      <select value={formData.type} onChange={(e) => setFormData({...formData, type: e.target.value})}>
-                        <option value="Classic">Classic</option>
-                        <option value="Ultimate">Ultimate</option>
-                        <option value="Fusion">Fusion</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="form-group-v2">
-                  <label>Genetic Description</label>
-                  <textarea rows="3" value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} required />
-                </div>
-
-                <div className="form-group-v2">
-                  <label>Power Signatures</label>
-                  <input type="text" value={formData.power} onChange={(e) => setFormData({...formData, power: e.target.value})} placeholder="e.g. Pyrokinesis, Flight" />
-                </div>
-
-                <div className="form-row-two-columns">
-                  <div className="form-group-v2" style={{ marginBottom: 0 }}>
-                    <label>Watch Assignment</label>
-                    <select value={formData.watch_type} onChange={(e) => setFormData({...formData, watch_type: e.target.value})}>
-                      <option value="homepage">Homepage Only</option>
-                      <option value="omnitrix">Omnitrix Only</option>
-                      <option value="ultimatrix">Ultimatrix Only</option>
-                      <option value="both">Both Watches</option>
-                    </select>
-                  </div>
-                  <div className="form-group-v2" style={{ marginBottom: 0 }}>
-                    <label>Slot Position (Order Index)</label>
-                    <input type="number" min="1" value={formData.order_index} onChange={(e) => setFormData({...formData, order_index: parseInt(e.target.value) || 1})} required />
-                  </div>
-                </div>
-
-                <div className="gallery-section">
-                  <label>Sample Gallery</label>
-                  <div className="gallery-grid">
-                    {formData.gallery.map((url, i) => (
-                      <div key={i} className="gallery-item">
-                        <img src={url} alt="" />
-                        <button type="button" onClick={() => removeGalleryImage(i)}><X size={12} /></button>
-                      </div>
-                    ))}
-                    <button type="button" className="gallery-add" onClick={() => galleryInputRef.current.click()}>
-                      <Plus size={20} />
-                    </button>
-                    <input type="file" hidden multiple ref={galleryInputRef} onChange={handleGalleryUpload} accept="image/*" />
-                  </div>
-                </div>
-
-                <div className="modal-footer-v2">
-                  <button type="button" className="cancel-btn-v2" onClick={() => setIsModalOpen(false)}>Abort</button>
-                  <button type="submit" className="submit-btn-v2" disabled={uploading}>
-                    {uploading ? <Loader2 className="spin" size={20} /> : (editingAlien ? 'Update Archive' : 'Confirm DNA')}
-                  </button>
-                </div>
-              </form>
-            </motion.div>
+        {/* Loading overlay */}
+        {loading && aliens.length === 0 && transformations.length === 0 && (
+          <div className="admin-loader">
+            <div className="omnitrix-spinner"></div>
+            <span>Accessing Codon Stream...</span>
           </div>
         )}
-      </AnimatePresence>
+
+        <div className="admin-layout">
+          
+          {/* Main Area */}
+          <main className="admin-main">
+            
+            {activeTab === "dashboard" && (
+              <div className="dashboard-view">
+                <div className="stats-grid">
+                  <div className="stat-card">
+                    <div className="stat-icon"><Users size={24} /></div>
+                    <div className="stat-content">
+                      <h3>Total Aliens</h3>
+                      <p className="stat-value">{aliens.length}</p>
+                    </div>
+                  </div>
+                  <div className="stat-card">
+                    <div className="stat-icon omnitrix-color"><Watch size={24} /></div>
+                    <div className="stat-content">
+                      <h3>Omnitrix Samples</h3>
+                      <p className="stat-value">{omnitrixAliens.length}</p>
+                    </div>
+                  </div>
+                  <div className="stat-card">
+                    <div className="stat-icon ultimatrix-color"><Watch size={24} /></div>
+                    <div className="stat-content">
+                      <h3>Ultimatrix Samples</h3>
+                      <p className="stat-value">{ultimatrixAliens.length}</p>
+                    </div>
+                  </div>
+                  <div className="stat-card">
+                    <div className="stat-icon trans-color"><Activity size={24} /></div>
+                    <div className="stat-content">
+                      <h3>Transformations</h3>
+                      <p className="stat-value">{transformations.length}</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="recent-activity">
+                  <h3>Recent Activity</h3>
+                  <div className="activity-list">
+                    {transformations.slice(0, 5).map(tr => {
+                      const alien = aliens.find(a => a.id === tr.alien_id);
+                      return (
+                        <div key={tr.id} className="activity-item">
+                          <Activity size={16} className="activity-icon" />
+                          <div className="activity-text">
+                            <strong>New Transformation Added:</strong> {tr.name} for {alien?.name || "Unknown Alien"}
+                          </div>
+                        </div>
+                      )
+                    })}
+                    {aliens.slice(aliens.length > 5 ? aliens.length - 5 : 0).reverse().map(al => (
+                      <div key={al.id} className="activity-item">
+                        <Users size={16} className="activity-icon" />
+                        <div className="activity-text">
+                          <strong>New Alien Cataloged:</strong> {al.name} ({al.watch_type})
+                        </div>
+                      </div>
+                    ))}
+                    {transformations.length === 0 && aliens.length === 0 && (
+                      <p className="text-muted">No recent activity found in the Codon Stream.</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {(activeTab === "omnitrix" || activeTab === "ultimatrix") && (
+              <>
+                <div className="section-header-row">
+                  <h2 className="section-title">
+                    {activeTab.toUpperCase()} DATABASE
+                    <span className="badge">{activeTab === "omnitrix" ? omnitrixAliens.length : ultimatrixAliens.length}</span>
+                  </h2>
+                  
+                  {!isAdding && !editingAlien && !editingTransformation && (
+                    <button className="add-btn" onClick={() => setIsAdding(true)}>
+                      <Plus size={16} />
+                      <span>Add New</span>
+                    </button>
+                  )}
+                </div>
+
+                <div className="alien-grid">
+                  <AnimatePresence>
+                    {(activeTab === "omnitrix" ? omnitrixAliens : ultimatrixAliens).map(renderAlienCard)}
+                  </AnimatePresence>
+                </div>
+              </>
+            )}
+
+            {/* Transformations Grid */}
+            {activeTab === "transformations" && (
+              <>
+                <div className="section-header-row">
+                  <h2 className="section-title">
+                    TRANSFORMATIONS
+                    <span className="badge">{transformations.length}</span>
+                  </h2>
+                  
+                  {!isAdding && !editingAlien && !editingTransformation && (
+                    <button className="add-btn" onClick={() => setIsAdding(true)}>
+                      <Plus size={16} />
+                      <span>Add New</span>
+                    </button>
+                  )}
+                </div>
+
+                <div className="trans-admin-grid">
+                  <AnimatePresence>
+                    {transformations.map((tr) => {
+                      const parentAlien = aliens.find((a) => a.id === tr.alien_id);
+                      return (
+                        <motion.div 
+                          key={tr.id} 
+                          className="trans-admin-card"
+                          initial={{ opacity: 0, scale: 0.95 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.95 }}
+                          layout
+                        >
+                          <div className="trans-image">
+                            {tr.image_url ? (
+                              <img src={tr.image_url} alt={tr.description} />
+                            ) : (
+                              <div className="no-image"><ImageIcon size={32} /></div>
+                            )}
+                          </div>
+                          <div className="trans-info">
+                            <h3>{tr.name || "Transformation Form"}</h3>
+                            <div className="parent-tag">
+                              <strong>Alien:</strong> {parentAlien ? parentAlien.name : "Deleted Alien"}
+                            </div>
+                            <p>{tr.description || "No description provided."}</p>
+                          </div>
+                          <div className="trans-actions">
+                            <button className="action-btn edit" onClick={() => { setEditingTransformation(tr); setIsAdding(false); }}>
+                              <Edit size={14} />
+                            </button>
+                            <button className="action-btn delete" onClick={() => handleDeleteTransformation(tr.id)}>
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </motion.div>
+                      );
+                    })}
+                  </AnimatePresence>
+                </div>
+              </>
+            )}
+          </main>
+
+          {/* Form Panel (Right Sidebar) */}
+          {activeTab !== "dashboard" && (
+            <aside className="admin-sidebar">
+              <AnimatePresence mode="wait">
+                
+                {/* Form Title & Close */}
+                {(isAdding || editingAlien || editingTransformation) ? (
+                  <motion.div 
+                    key="form-container"
+                    className="form-container"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 20 }}
+                  >
+                    <div className="form-header">
+                      <h3>
+                        {isAdding && `Add New ${activeTab === "transformations" ? "Transformation" : "Alien"}`}
+                        {editingAlien && `Edit ${editingAlien.name}`}
+                        {editingTransformation && `Edit Transformation`}
+                      </h3>
+                      <button className="close-form-btn" onClick={() => {
+                        setIsAdding(false);
+                        setEditingAlien(null);
+                        setEditingTransformation(null);
+                        setAlienImageFile(null);
+                        setTransImageFile(null);
+                        setAlienPreviewUrl("");
+                        setTransPreviewUrl("");
+                      }}>
+                        <X size={18} />
+                      </button>
+                    </div>
+
+                    {/* ALIEN ADD FORM */}
+                    {isAdding && activeTab !== "transformations" && (
+                      <form onSubmit={handleAddAlien} className="admin-form">
+                        <div className="form-group">
+                          <label>Alien Name *</label>
+                          <input type="text" value={newAlien.name} onChange={(e) => setNewAlien({ ...newAlien, name: e.target.value })} required placeholder="e.g. Swampfire" />
+                        </div>
+                        <div className="form-group">
+                          <label>Alien Type</label>
+                          <input type="text" value={newAlien.type} onChange={(e) => setNewAlien({ ...newAlien, type: e.target.value })} placeholder="e.g. Classic, Ultimate" />
+                        </div>
+                        <div className="form-row">
+                          <div className="form-group">
+                            <label>Species</label>
+                            <input type="text" value={newAlien.species} onChange={(e) => setNewAlien({ ...newAlien, species: e.target.value })} placeholder="e.g. Methanosian" />
+                          </div>
+                          <div className="form-group">
+                            <label>Planet</label>
+                            <input type="text" value={newAlien.planet} onChange={(e) => setNewAlien({ ...newAlien, planet: e.target.value })} placeholder="e.g. Methanos" />
+                          </div>
+                        </div>
+                        <div className="form-group">
+                          <label>Abilities / Powers (comma separated)</label>
+                          <input type="text" value={newAlien.power} onChange={(e) => setNewAlien({ ...newAlien, power: e.target.value })} placeholder="e.g. Pyrokinesis, Chlorokinesis" />
+                        </div>
+                        <div className="form-row">
+                          <div className="form-group">
+                            <label>Order Index</label>
+                            <input type="number" value={newAlien.order_index} onChange={(e) => setNewAlien({ ...newAlien, order_index: e.target.value })} min="0" />
+                          </div>
+                          <div className="form-group">
+                            <label>Watch Category</label>
+                            <select value={newAlien.watch_type} onChange={(e) => setNewAlien({ ...newAlien, watch_type: e.target.value })}>
+                              <option value="omnitrix">Omnitrix</option>
+                              <option value="ultimatrix">Ultimatrix</option>
+                              <option value="both">Both Watches</option>
+                            </select>
+                          </div>
+                        </div>
+                        <div className="form-group">
+                          <label>Description</label>
+                          <textarea value={newAlien.description} onChange={(e) => setNewAlien({ ...newAlien, description: e.target.value })} rows="3" placeholder="Detail the lore/biography of the alien..."></textarea>
+                        </div>
+                        
+                        {/* Image Upload/Url Section */}
+                        <div className="image-field-section">
+                          <div className="form-group">
+                            <label>Image Upload</label>
+                            <div className="file-uploader" onClick={() => alienFileInputRef.current.click()}>
+                              <Upload size={18} />
+                              <span>{alienImageFile ? alienImageFile.name : "Select Image File"}</span>
+                              <input type="file" ref={alienFileInputRef} onChange={handleAlienFileChange} accept="image/*" style={{ display: 'none' }} />
+                            </div>
+                          </div>
+                          <div className="form-divider">OR</div>
+                          <div className="form-group">
+                            <label>Paste Image URL</label>
+                            <input type="url" value={newAlien.image_url} onChange={(e) => setNewAlien({ ...newAlien, image_url: e.target.value })} placeholder="https://example.com/image.png" disabled={!!alienImageFile} />
+                          </div>
+                        </div>
+
+                        {alienPreviewUrl && (
+                          <div className="image-preview">
+                            <img src={alienPreviewUrl} alt="Preview" />
+                          </div>
+                        )}
+
+                        <button type="submit" className="submit-btn" disabled={loading}>
+                          {loading ? "Adding DNA..." : "Assemble DNA"}
+                        </button>
+                      </form>
+                    )}
+
+                    {/* ALIEN EDIT FORM */}
+                    {editingAlien && (
+                      <form onSubmit={handleEditAlien} className="admin-form">
+                        <div className="form-group">
+                          <label>Alien Name *</label>
+                          <input type="text" value={editingAlien.name} onChange={(e) => setEditingAlien({ ...editingAlien, name: e.target.value })} required />
+                        </div>
+                        <div className="form-group">
+                          <label>Alien Type</label>
+                          <input type="text" value={editingAlien.type} onChange={(e) => setEditingAlien({ ...editingAlien, type: e.target.value })} />
+                        </div>
+                        <div className="form-row">
+                          <div className="form-group">
+                            <label>Species</label>
+                            <input type="text" value={editingAlien.species || ""} onChange={(e) => setEditingAlien({ ...editingAlien, species: e.target.value })} />
+                          </div>
+                          <div className="form-group">
+                            <label>Planet</label>
+                            <input type="text" value={editingAlien.planet || ""} onChange={(e) => setEditingAlien({ ...editingAlien, planet: e.target.value })} />
+                          </div>
+                        </div>
+                        <div className="form-group">
+                          <label>Abilities / Powers (comma separated)</label>
+                          <input type="text" value={editingAlien.power || ""} onChange={(e) => setEditingAlien({ ...editingAlien, power: e.target.value })} />
+                        </div>
+                        <div className="form-row">
+                          <div className="form-group">
+                            <label>Order Index</label>
+                            <input type="number" value={editingAlien.order_index || 0} onChange={(e) => setEditingAlien({ ...editingAlien, order_index: e.target.value })} min="0" />
+                          </div>
+                          <div className="form-group">
+                            <label>Watch Category</label>
+                            <select value={editingAlien.watch_type || "omnitrix"} onChange={(e) => setEditingAlien({ ...editingAlien, watch_type: e.target.value })}>
+                              <option value="omnitrix">Omnitrix</option>
+                              <option value="ultimatrix">Ultimatrix</option>
+                              <option value="both">Both Watches</option>
+                            </select>
+                          </div>
+                        </div>
+                        <div className="form-group">
+                          <label>Description</label>
+                          <textarea value={editingAlien.description || ""} onChange={(e) => setEditingAlien({ ...editingAlien, description: e.target.value })} rows="3"></textarea>
+                        </div>
+
+                        {/* Image Upload/Url Section */}
+                        <div className="image-field-section">
+                          <div className="form-group">
+                            <label>Change Image</label>
+                            <div className="file-uploader" onClick={() => alienFileInputRef.current.click()}>
+                              <Upload size={18} />
+                              <span>{alienImageFile ? alienImageFile.name : "Upload New File"}</span>
+                              <input type="file" ref={alienFileInputRef} onChange={handleAlienFileChange} accept="image/*" style={{ display: 'none' }} />
+                            </div>
+                          </div>
+                          <div className="form-divider">OR</div>
+                          <div className="form-group">
+                            <label>Edit Image URL</label>
+                            <input type="url" value={editingAlien.image_url || ""} onChange={(e) => setEditingAlien({ ...editingAlien, image_url: e.target.value })} placeholder="https://example.com/image.png" disabled={!!alienImageFile} />
+                          </div>
+                        </div>
+
+                        {(alienPreviewUrl || editingAlien.image_url) && (
+                          <div className="image-preview">
+                            <img src={alienPreviewUrl || editingAlien.image_url} alt="Preview" />
+                          </div>
+                        )}
+
+                        <button type="submit" className="submit-btn" disabled={loading}>
+                          {loading ? "Re-sequencing DNA..." : "Modify DNA"}
+                        </button>
+                      </form>
+                    )}
+
+                    {/* TRANSFORMATION ADD FORM */}
+                    {isAdding && activeTab === "transformations" && (
+                      <form onSubmit={handleAddTransformation} className="admin-form">
+                        <div className="form-group">
+                          <label>Alien Character *</label>
+                          <select value={newTransformation.alien_id} onChange={(e) => setNewTransformation({ ...newTransformation, alien_id: e.target.value })} required>
+                            <option value="">-- Choose Alien --</option>
+                            {aliens.map((a) => (
+                              <option key={a.id} value={a.id}>{a.name} ({a.watch_type})</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="form-group">
+                          <label>Form Title / Name</label>
+                          <input type="text" value={newTransformation.name} onChange={(e) => setNewTransformation({ ...newTransformation, name: e.target.value })} placeholder="e.g. Mid-transformation, Ultimate Form" />
+                        </div>
+                        <div className="form-group">
+                          <label>Form Description</label>
+                          <textarea value={newTransformation.description} onChange={(e) => setNewTransformation({ ...newTransformation, description: e.target.value })} rows="3" placeholder="Description of this form..."></textarea>
+                        </div>
+
+                        {/* Image Upload/Url Section */}
+                        <div className="image-field-section">
+                          <div className="form-group">
+                            <label>Image File *</label>
+                            <div className="file-uploader" onClick={() => transFileInputRef.current.click()}>
+                              <Upload size={18} />
+                              <span>{transImageFile ? transImageFile.name : "Select Image File"}</span>
+                              <input type="file" ref={transFileInputRef} onChange={handleTransFileChange} accept="image/*" style={{ display: 'none' }} />
+                            </div>
+                          </div>
+                          <div className="form-divider">OR</div>
+                          <div className="form-group">
+                            <label>Paste Image URL</label>
+                            <input type="url" value={newTransformation.image_url} onChange={(e) => setNewTransformation({ ...newTransformation, image_url: e.target.value })} placeholder="https://example.com/image.png" disabled={!!transImageFile} />
+                          </div>
+                        </div>
+
+                        {transPreviewUrl && (
+                          <div className="image-preview">
+                            <img src={transPreviewUrl} alt="Preview" />
+                          </div>
+                        )}
+
+                        <button type="submit" className="submit-btn" disabled={loading}>
+                          {loading ? "Adding Form..." : "Inject DNA Form"}
+                        </button>
+                      </form>
+                    )}
+
+                    {/* TRANSFORMATION EDIT FORM */}
+                    {editingTransformation && (
+                      <form onSubmit={handleEditTransformation} className="admin-form">
+                        <div className="form-group">
+                          <label>Alien Character *</label>
+                          <select value={editingTransformation.alien_id} onChange={(e) => setEditingTransformation({ ...editingTransformation, alien_id: e.target.value })} required>
+                            {aliens.map((a) => (
+                              <option key={a.id} value={a.id}>{a.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="form-group">
+                          <label>Form Title / Name</label>
+                          <input type="text" value={editingTransformation.name || ""} onChange={(e) => setEditingTransformation({ ...editingTransformation, name: e.target.value })} />
+                        </div>
+                        <div className="form-group">
+                          <label>Form Description</label>
+                          <textarea value={editingTransformation.description || ""} onChange={(e) => setEditingTransformation({ ...editingTransformation, description: e.target.value })} rows="3"></textarea>
+                        </div>
+
+                        {/* Image Upload/Url Section */}
+                        <div className="image-field-section">
+                          <div className="form-group">
+                            <label>Change Image</label>
+                            <div className="file-uploader" onClick={() => transFileInputRef.current.click()}>
+                              <Upload size={18} />
+                              <span>{transImageFile ? transImageFile.name : "Upload New File"}</span>
+                              <input type="file" ref={transFileInputRef} onChange={handleTransFileChange} accept="image/*" style={{ display: 'none' }} />
+                            </div>
+                          </div>
+                          <div className="form-divider">OR</div>
+                          <div className="form-group">
+                            <label>Edit Image URL</label>
+                            <input type="url" value={editingTransformation.image_url || ""} onChange={(e) => setEditingTransformation({ ...editingTransformation, image_url: e.target.value })} placeholder="https://example.com/image.png" disabled={!!transImageFile} />
+                          </div>
+                        </div>
+
+                        {(transPreviewUrl || editingTransformation.image_url) && (
+                          <div className="image-preview">
+                            <img src={transPreviewUrl || editingTransformation.image_url} alt="Preview" />
+                          </div>
+                        )}
+
+                        <button type="submit" className="submit-btn" disabled={loading}>
+                          {loading ? "Updating Form..." : "Apply DNA Modifications"}
+                        </button>
+                      </form>
+                    )}
+
+                  </motion.div>
+                ) : (
+                  <motion.div 
+                    key="form-empty"
+                    className="sidebar-empty"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                  >
+                    <div className="empty-panel-glow" />
+                    <Sparkles size={40} className="glow-icon" />
+                    <h4>DNA Control Center</h4>
+                    <p>Select any card from the grid to modify its DNA parameters, or assemble a brand new alien form.</p>
+                    <button className="sidebar-add-btn" onClick={() => setIsAdding(true)}>
+                      <Plus size={16} />
+                      <span>Create New Entry</span>
+                    </button>
+                  </motion.div>
+                )}
+
+              </AnimatePresence>
+            </aside>
+          )}
+
+        </div>
+
+      </div>
     </div>
   );
 }
-
-export default AdminPanel;
-

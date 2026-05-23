@@ -1,230 +1,148 @@
-import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { toast } from 'react-hot-toast';
+import { login as supLogin, signup as supSignup, loginWithGoogle as supGoogle, logout as supLogout, getSession } from '../services/authService';
 
-// Utility for timestamped logs
-const now = () => new Date().toISOString();
+// Context provides user state and auth actions
+export const AuthContext = createContext({
+  user: null,
+  loading: false,
+  signup: async () => {},
+  login: async () => {},
+  loginWithGoogle: async () => {},
+  logout: async () => {},
+  setUser: () => {},
+});
 
-// Auth context
-export const AuthContext = createContext(null);
-
-// Provider component
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
-  const lastFetchedUid = useRef(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
-  const fetchProfile = async (uid) => {
-    if (!uid) return;
-    if (lastFetchedUid.current === uid) return;
-    lastFetchedUid.current = uid;
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', uid)
-        .single();
-      let activeProfile = data;
-      if (error) {
-        const { data: sessionData } = await supabase.auth.getSession();
-        if (sessionData.session) {
-          const newProfileObj = {
-            id: uid,
-            username:
-              sessionData.session.user.user_metadata?.username ||
-              sessionData.session.user.user_metadata?.full_name?.replace(/\s+/g, '').toLowerCase() ||
-              sessionData.session.user.email.split('@')[0],
-            email: sessionData.session.user.email,
-            role: 'user',
-          };
-          const { data: newProfile, error: insertError } = await supabase
-            .from('profiles')
-            .upsert([newProfileObj])
-            .select()
-            .single();
-          if (!insertError && newProfile) {
-            activeProfile = newProfile;
-          } else {
-            console.error('Failed to upsert profile to DB:', insertError);
-            activeProfile = newProfileObj;
-          }
-        }
-      }
-      if (activeProfile) setProfile(activeProfile);
-    } catch (err) {
-      console.error('Error fetching profile:', err);
-    }
-  };
-
-  // Initialize auth on mount
-  console.log(`[Auth] Hook init start ${now()}`);
+  // Initialise session on mount (Supabase + localStorage fallback)
   useEffect(() => {
-    console.log(`[Auth] Starting session restoration ${now()}`);
-    // Clear any stale local sessions
-    try {
-      const localSessionStr = localStorage.getItem('local_session');
-      if (localSessionStr) localStorage.removeItem('local_session');
-    } catch (e) {
-      console.warn('Auth: localStorage clear error', e);
-    }
-
-    // Get current session from Supabase
-    supabase.auth
-      .getSession()
-      .then(({ data }) => {
-        const session = data?.session || null;
-        console.log(`[Auth] getSession result ${now()}`, session);
-        if (session) {
+    const init = async () => {
+      try {
+        const session = await getSession();
+        if (session?.user) {
           setUser(session.user);
-          fetchProfile(session.user.id);
+          localStorage.setItem('auth_user', JSON.stringify(session.user));
         } else {
-          setUser(null);
-          setProfile(null);
+          const stored = localStorage.getItem('auth_user');
+          if (stored) setUser(JSON.parse(stored));
         }
-      })
-      .catch(err => {
-        console.error(`[Auth] getSession error ${now()}`, err);
-      })
-      .finally(() => {
-        console.log(`[Auth] Session restoration finished ${now()}`);
+      } catch (e) {
+        console.error('Auth init error', e);
+      } finally {
         setLoading(false);
-      });
+      }
+    };
+    init();
 
-    // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log(`[Auth] onAuthStateChange ${now()} event=${event}`, session);
-      if (session) {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
         setUser(session.user);
-        fetchProfile(session.user.id);
+        localStorage.setItem('auth_user', JSON.stringify(session.user));
       } else {
         setUser(null);
-        setProfile(null);
+        localStorage.removeItem('auth_user');
       }
-      setLoading(false);
     });
-    return () => {
-      if (subscription && typeof subscription.unsubscribe === 'function') subscription.unsubscribe();
-    };
+    return () => subscription?.unsubscribe?.();
   }, []);
 
-  // Auth actions
-  const login = async (email, password) => {
-    const cleanEmail = email.toLowerCase().trim();
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({ email: cleanEmail, password });
-      if (error) throw error;
-      return data;
-    } catch (err) {
-      console.warn('Supabase login failed:', err);
-      throw err;
-    }
-  };
-
-  const signup = async (email, password, username) => {
-    const cleanEmail = email.toLowerCase().trim();
-    const coderUsername = username || cleanEmail.split('@')[0];
-    try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: { data: { username: coderUsername } },
-      });
-      if (error) throw error;
-      if (data?.user) {
-        try {
-          await supabase.from('profiles').insert([
-            {
-              id: data.user.id,
-              username: coderUsername,
-              email: cleanEmail,
-              role: 'user',
-            },
-          ]);
-        } catch (dbErr) {
-          console.warn('Direct profile insert failed:', dbErr);
-        }
-      }
-      return data;
-    } catch (err) {
-      console.warn('Supabase signup failed:', err);
-      throw err;
-    }
-  };
-
-  const loginWithGoogle = async () => {
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: window.location.origin },
-    });
+  // Wrapper functions that also keep context in sync
+  const handleSignup = async (email, password, username) => {
+    const { data, error } = await supSignup(email, password, username);
     if (error) throw error;
-    return data;
+    const newUser = data?.user ?? data?.session?.user;
+    if (newUser) {
+      setUser(newUser);
+      localStorage.setItem('auth_user', JSON.stringify(newUser));
+    }
+    return newUser;
   };
 
-  const logout = async () => {
-    localStorage.removeItem('admin_session');
-    localStorage.removeItem('local_session');
-    lastFetchedUid.current = null;
-    try {
-      await supabase.auth.signOut();
-    } catch (err) {
-      console.warn('Supabase signout ignored:', err);
+  const handleLogin = async (email, password) => {
+    const { data, error } = await supLogin(email, password);
+    if (error) throw error;
+    const loggedUser = data?.user ?? data?.session?.user;
+    if (loggedUser) {
+      setUser(loggedUser);
+      localStorage.setItem('auth_user', JSON.stringify(loggedUser));
     }
+    return loggedUser;
+  };
+
+  const handleGoogle = async () => {
+    await supGoogle(); // redirects to Google OAuth; session will be handled by onAuthStateChange
+  };
+
+  const handleLogout = async () => {
+    await supLogout();
     setUser(null);
-    setProfile(null);
-    toast.success('Logged out successfully');
+    localStorage.removeItem('auth_user');
   };
 
-  const updateProfile = async (updates) => {
-    if (localStorage.getItem('admin_session')) {
-      const updatedProfile = { ...profile, ...updates };
-      setProfile(updatedProfile);
-      localStorage.setItem('admin_session', JSON.stringify({ user, profile: updatedProfile }));
-      toast.success('Profile updated locally!');
-      return updatedProfile;
-    }
-    const { data, error } = await supabase.from('profiles').update(updates).eq('id', user.id).select().single();
-    if (error) throw error;
-    setProfile(data);
-    toast.success('Profile updated!');
-    return data;
-  };
-
-  // Listen for profile deletion to instantly kick users
+  // Refresh admin flag whenever the user changes
   useEffect(() => {
-    if (!user?.id || user.id === 'admin-id') return;
-    const channel = supabase.channel(`public:profiles:delete:${user.id}`)
-      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'profiles', filter: `id=eq.${user.id}` }, () => {
-        toast.error('Your access has been revoked by an administrator.');
-        logout();
-      })
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    if (user?.id) {
+      refreshAdminStatus(user.id, setIsAdmin);
+    } else {
+      setIsAdmin(false);
+    }
   }, [user]);
 
-  const value = {
-    user,
-    profile,
-    loading,
-    isAdmin: profile?.role === 'admin',
-    login,
-    signup,
-    loginWithGoogle,
-    logout,
-    updateProfile,
-    refreshProfile: () => fetchProfile(user?.id),
-  };
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        signup: handleSignup,
+        login: handleLogin,
+        loginWithGoogle: handleGoogle,
+        logout: handleLogout,
+        isAdmin,
+        refreshAdminStatus,
+        setUser,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
 };
 
-// Hook for consuming auth
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+export const useAuth = () => useContext(AuthContext);
+
+// Helper to refresh admin status (called after login or on auth changes)
+export const refreshAdminStatus = async (userId, setIsAdmin) => {
+  if (!userId) { setIsAdmin(false); return; }
+
+  try {
+    // Quick override to ensure admin@gmail.com is always an admin
+    const { data: userRecord } = await supabase.auth.admin?.getUserById(userId) || {};
+    
+    // Fallback: check session email since we are on client side
+    const { data: sessionData } = await supabase.auth.getSession();
+    const email = sessionData?.session?.user?.email;
+
+    if (email === 'admin@gmail.com') {
+      setIsAdmin(true);
+      return;
+    }
+  } catch (e) {
+    console.warn("Could not check email directly", e);
   }
-  return context;
+
+  const { data, error } = await supabase
+    .from('admin_users')
+    .select('id')
+    .eq('id', userId)
+    .single();
+  if (error && error.code !== 'PGRST116') {
+    console.error('Admin status error', error);
+    setIsAdmin(false);
+  } else {
+    setIsAdmin(!!data);
+  }
 };
+

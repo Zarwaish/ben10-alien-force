@@ -88,18 +88,36 @@ export const alienService = {
     return data || [];
   },
 
+  async fetchAliens() {
+    return this.getAll();
+  },
+
   async getByName(name) {
     const { data, error } = await supabase
       .from('aliens')
       .select('*')
       .ilike('name', name)
-      .maybeSingle();   // maybeSingle won't throw if 0 rows
+      .maybeSingle();
 
     if (error) {
       console.error('[alienService.getByName]', error);
       await throwFriendly(error, 'getByName');
     }
     if (!data) throw new Error(`Alien "${name}" not found in database.`);
+    return data;
+  },
+
+  async fetchAlienById(id) {
+    const { data, error } = await supabase
+      .from('aliens')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (error) {
+      console.error('[alienService.fetchAlienById]', error);
+      await throwFriendly(error, 'fetchAlienById');
+    }
     return data;
   },
 
@@ -122,7 +140,6 @@ export const alienService = {
     if (error) {
       console.error('[alienService.create] Supabase error:', error);
 
-      // If unknown columns, reset probe and retry without them
       if (error.code === 'PGRST204' || error.message?.includes('watch_type') || error.message?.includes('order_index') || error.message?.includes('gallery')) {
         console.log('[alienService.create] Retrying insert with stripped payload due to schema mismatch...');
         _hasWatchColumns = false;
