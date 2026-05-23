@@ -1066,7 +1066,8 @@
         height: 220px;
     }
     .watch-omni {
-        width: 160px;
+        width: 40vw;
+        max-width: 200px;
     }
     .light-omni {
         width: 350px;
@@ -1605,7 +1606,7 @@
     .cta-group { flex-direction: column; align-items: stretch; }
 
     .alien-entry-omni img { width: 180px; height: 180px; }
-    .watch-omni { width: 120px; }
+    .watch-omni { width: 45vw; max-width: 180px; }
     .light-omni { width: 250px; }
     .status { font-size: 12px; }
     .alien-container { height: 30vh; min-height: 180px; }

@@ -87,5 +87,31 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 200px;
+}
+
+/* Responsive adjustments for mobile */
+@media (max-width: 768px) {
+  .alien-image-large {
+    width: 60vw;
+    height: 60vw;
+    max-width: 250px;
+    max-height: 250px;
+  }
+  .alien-center {
+    /* Watch is max 40vw + slightly larger. Bottom offset dynamically scales. */
+    bottom: calc(40px + 45vw);
+  }
+}
+
+@media (max-width: 480px) {
+  .alien-image-large {
+    width: 65vw;
+    height: 65vw;
+    max-width: 220px;
+    max-height: 220px;
+  }
+  .alien-center {
+    /* Watch is ~45vw. Bottom offset dynamically scales perfectly just above watch. */
+    bottom: calc(45px + 45vw);
+  }
 }
