@@ -414,7 +414,10 @@ export default function AdminPanel() {
                   </h2>
                   
                   {!isAdding && !editingAlien && !editingTransformation && (
-                    <button className="add-btn" onClick={() => setIsAdding(true)}>
+                    <button className="add-btn" onClick={() => {
+                      setNewAlien({ ...initialAlienState, watch_type: activeTab });
+                      setIsAdding(true);
+                    }}>
                       <Plus size={16} />
                       <span>Add New</span>
                     </button>
