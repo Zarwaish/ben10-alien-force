@@ -24,7 +24,11 @@
   z-index: 1000;
 }
 
-/* Alien container absolutely positioned just above watch */
+/*
+ * Alien sits directly above the watch with no gap.
+ * Desktop watch = 320px tall, bottom offset = 35px
+ * So alien bottom = 35 + 320 = 355px
+ */
 .alien-center {
   display: flex;
   flex-direction: column;
@@ -32,8 +36,8 @@
   justify-content: flex-end;
   width: 100%;
   text-align: center;
-  position: absolute;
-  bottom: 220px; /* Positions alien directly above the watch control */
+  position: fixed;
+  bottom: 355px;
   left: 50%;
   transform: translateX(-50%);
   background: transparent !important;
@@ -47,8 +51,8 @@
 }
 
 .alien-image-large {
-  width: 350px;
-  height: 350px;
+  width: 380px;
+  height: 380px;
   object-fit: contain !important;
   display: block;
   margin: 0 !important;
@@ -62,6 +66,7 @@
   mix-blend-mode: normal !important;
   border: none !important;
   outline: none !important;
+  cursor: pointer;
 }
 
 /* Remove any pseudo‑elements on image or container */
@@ -89,43 +94,65 @@
   align-items: center;
 }
 
-/* Responsive adjustments for mobile */
-@media (max-width: 768px) {
+/*
+ * ─── Tablet (769–1024px) ───────────────────────────────────────
+ * Watch: 300px (capped from 1024px breakpoint in App.css)
+ * Alien bottom = 35 + 300 = 335px
+ */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .alien-center {
+    bottom: 335px;
+  }
   .alien-image-large {
-    width: 48vw;
-    height: 48vw;
-    max-width: 220px;
-    max-height: 220px;
-  }
-  .alien-center {
-    /* Watch size is 52vw. Position alien just above it with a premium gap of 7px. */
-    bottom: calc(42px + 52vw);
+    width: 320px;
+    height: 320px;
   }
 }
 
-/* Tablet watch size cap adjustment (when watch reaches its max-width of 260px) */
-@media (min-width: 500px) and (max-width: 768px) {
-  .alien-center {
-    bottom: calc(42px + 260px);
-  }
-}
-
-@media (max-width: 480px) {
+/*
+ * ─── Small tablet / large phone (481–768px) ──────────────────────
+ * Watch: 56vw, capped at 320px
+ */
+@media (max-width: 768px) {
   .alien-image-large {
     width: 52vw;
     height: 52vw;
-    max-width: 180px;
-    max-height: 180px;
+    max-width: 260px;
+    max-height: 260px;
   }
+  /* vw-based: alien bottom = 35px + 56vw */
   .alien-center {
-    /* Watch size is 58vw. Position alien just above it with a premium gap of 7px. */
-    bottom: calc(42px + 58vw);
+    bottom: calc(35px + 56vw);
   }
 }
 
-/* Mobile watch size cap adjustment (when watch reaches its max-width of 210px) */
-@media (min-width: 362px) and (max-width: 480px) {
+/* Cap when watch reaches its max-width of 320px (at ~571px viewport) */
+@media (min-width: 571px) and (max-width: 768px) {
   .alien-center {
-    bottom: calc(42px + 210px);
+    bottom: calc(35px + 320px);
+  }
+}
+
+/*
+ * ─── Mobile (≤480px) ─────────────────────────────────────────────
+ * Watch: 64vw, capped at 260px
+ */
+@media (max-width: 480px) {
+  .alien-image-large {
+    width: 58vw;
+    height: 58vw;
+    max-width: 230px;
+    max-height: 230px;
+  }
+  /* vw-based: alien bottom = 35px + 64vw */
+  .alien-center {
+    bottom: calc(35px + 64vw);
+  }
+}
+
+/* Cap when watch reaches its max-width of 260px (at ~406px viewport) */
+@media (min-width: 406px) and (max-width: 480px) {
+  .alien-center {
+    bottom: calc(35px + 260px);
   }
 }
