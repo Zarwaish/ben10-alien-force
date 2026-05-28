@@ -689,7 +689,7 @@
 
 .light-omni {
     position: absolute;
-    bottom: 50%;
+    bottom: 48%;
     left: 50%;
     transform: translateX(-50%);
     width: 600px;
@@ -697,14 +697,14 @@
     background: linear-gradient(to top, var(--primary) 0%, transparent 100%);
     opacity: 0;
     filter: blur(10px);
-    transition: 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: none;
     z-index: 1;
     pointer-events: none;
     clip-path: polygon(50% 100%, 0% 0%, 100% 0%);
 }
 
 .light-omni.active {
-    height: 60vh;
+    height: 35vh;
     opacity: 0.85;
 }
 
@@ -786,21 +786,24 @@
     position: fixed;
     top: 100px;
     left: 80px;
+    background: transparent;
+    border: none;
     color: var(--primary);
-    font-family: var(--font-heading);
-    font-size: 14px;
     cursor: pointer;
     z-index: 10;
-    letter-spacing: 2px;
-    padding: 10px 20px;
-    border: 1px solid var(--primary);
-    border-radius: 4px;
-    transition: 0.3s;
+    padding: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .back-btn:hover {
-    background: var(--primary);
-    color: #000;
+    background: rgba(0, 255, 0, 0.15);
+    color: var(--primary);
+    transform: scale(1.1);
+    box-shadow: 0 0 20px var(--primary-glow);
 }
 
 .detail-content {
@@ -1066,14 +1069,14 @@
         height: 220px;
     }
     .watch-omni {
-        width: 40vw;
-        max-width: 200px;
+        width: 52vw;
+        max-width: 260px;
     }
     .light-omni {
         width: 350px;
     }
     .light-omni.active {
-        height: 40vh;
+        height: 30vh;
     }
     .controls-hint {
         position: relative;
@@ -1090,7 +1093,7 @@
 
     /* Detail View */
     .alien-detail-view { padding: 100px 20px 40px; }
-    .back-btn { top: 85px; left: 15px; font-size: 12px; padding: 8px 14px; }
+    .back-btn { top: 85px; left: 15px; padding: 8px; }
     .detail-content {
         flex-direction: column;
         gap: 30px;
@@ -1606,7 +1609,7 @@
     .cta-group { flex-direction: column; align-items: stretch; }
 
     .alien-entry-omni img { width: 180px; height: 180px; }
-    .watch-omni { width: 45vw; max-width: 180px; }
+    .watch-omni { width: 58vw; max-width: 210px; }
     .light-omni { width: 250px; }
     .status { font-size: 12px; }
     .alien-container { height: 30vh; min-height: 180px; }

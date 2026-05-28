@@ -37,11 +37,31 @@ export const adminAlienService = {
     if (error) throw error;
     return data;
   },
-  async create(alien, imageFile) {
+  async create(alien, imageFile, galleryFiles = [], ultimateFile = null) {
     let imageUrl = alien.image_url || null;
     if (imageFile) {
       imageUrl = await storageService.uploadImage(imageFile, 'alien-images');
     }
+    
+    // Upload ultimate form image
+    let ultimateImageUrl = alien.ultimate_image_url || null;
+    if (ultimateFile) {
+      ultimateImageUrl = await storageService.uploadImage(ultimateFile, 'alien-images');
+    }
+
+    // Upload gallery files
+    const uploadedGalleryUrls = [];
+    if (galleryFiles && galleryFiles.length > 0) {
+      for (const file of galleryFiles) {
+        const url = await storageService.uploadImage(file, 'alien-images');
+        uploadedGalleryUrls.push(url);
+      }
+    }
+
+    // Base gallery array starts with the primary image_url if provided, plus any uploaded gallery files
+    const initialGallery = imageUrl ? [imageUrl] : [];
+    const gallery = [...initialGallery, ...uploadedGalleryUrls];
+
     const payload = { 
       name: alien.name,
       description: alien.description || '',
@@ -49,6 +69,8 @@ export const adminAlienService = {
       type: alien.type || 'Classic',
       watch_type: alien.watch_type || 'omnitrix',
       image_url: imageUrl,
+      ultimate_image_url: ultimateImageUrl,
+      gallery: gallery,
       order_index: Number(alien.order_index) || 0,
       species: alien.species || '',
       planet: alien.planet || ''
@@ -57,11 +79,30 @@ export const adminAlienService = {
     if (error) throw error;
     return data[0];
   },
-  async update(id, updates, imageFile) {
+  async update(id, updates, imageFile, newGalleryFiles = [], ultimateFile = null) {
     let imageUrl = updates.image_url;
     if (imageFile) {
       imageUrl = await storageService.uploadImage(imageFile, 'alien-images');
     }
+
+    let ultimateImageUrl = updates.ultimate_image_url;
+    if (ultimateFile) {
+      ultimateImageUrl = await storageService.uploadImage(ultimateFile, 'alien-images');
+    }
+
+    // Upload any new gallery files
+    const uploadedGalleryUrls = [];
+    if (newGalleryFiles && newGalleryFiles.length > 0) {
+      for (const file of newGalleryFiles) {
+        const url = await storageService.uploadImage(file, 'alien-images');
+        uploadedGalleryUrls.push(url);
+      }
+    }
+
+    // Append new uploaded URLs to the existing gallery array
+    const existingGallery = Array.isArray(updates.gallery) ? updates.gallery : [];
+    const finalGallery = [...existingGallery, ...uploadedGalleryUrls];
+
     const payload = { 
       name: updates.name,
       description: updates.description || '',
@@ -69,6 +110,8 @@ export const adminAlienService = {
       type: updates.type || 'Classic',
       watch_type: updates.watch_type || 'omnitrix',
       image_url: imageUrl,
+      ultimate_image_url: ultimateImageUrl,
+      gallery: finalGallery,
       order_index: Number(updates.order_index) || 0,
       species: updates.species || '',
       planet: updates.planet || ''

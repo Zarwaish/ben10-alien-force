@@ -22,8 +22,16 @@ export default function AdminPanel() {
   const [alienPreviewUrl, setAlienPreviewUrl] = useState("");
   const [transPreviewUrl, setTransPreviewUrl] = useState("");
 
+  // Gallery and Ultimate Form state
+  const [galleryFiles, setGalleryFiles] = useState([]);
+  const [newGalleryPreviewUrls, setNewGalleryPreviewUrls] = useState([]);
+  const [ultimateFile, setUltimateFile] = useState(null);
+  const [ultimatePreviewUrl, setUltimatePreviewUrl] = useState("");
+
   const alienFileInputRef = useRef(null);
   const transFileInputRef = useRef(null);
+  const galleryFileInputRef = useRef(null);
+  const ultimateFileInputRef = useRef(null);
 
   // New templates
   const initialAlienState = {
@@ -36,6 +44,8 @@ export default function AdminPanel() {
     species: "",
     planet: "",
     image_url: "",
+    ultimate_image_url: "",
+    gallery: [],
     is_active: true
   };
 
@@ -78,6 +88,10 @@ export default function AdminPanel() {
     setTransImageFile(null);
     setAlienPreviewUrl("");
     setTransPreviewUrl("");
+    setGalleryFiles([]);
+    setNewGalleryPreviewUrls([]);
+    setUltimateFile(null);
+    setUltimatePreviewUrl("");
   }, [activeTab]);
 
   // File picker handlers
@@ -97,6 +111,37 @@ export default function AdminPanel() {
     }
   };
 
+  const handleGalleryFilesChange = (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length > 0) {
+      setGalleryFiles((prev) => [...prev, ...files]);
+      const urls = files.map((file) => URL.createObjectURL(file));
+      setNewGalleryPreviewUrls((prev) => [...prev, ...urls]);
+    }
+  };
+
+  const handleUltimateFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setUltimateFile(file);
+      setUltimatePreviewUrl(URL.createObjectURL(file));
+    }
+  };
+
+  const handleDeleteGalleryImage = (urlToDelete) => {
+    if (!editingAlien) return;
+    const updatedGallery = (editingAlien.gallery || []).filter((u) => u !== urlToDelete);
+    setEditingAlien({
+      ...editingAlien,
+      gallery: updatedGallery
+    });
+  };
+
+  const handleDeleteNewGalleryFile = (index) => {
+    setGalleryFiles((prev) => prev.filter((_, i) => i !== index));
+    setNewGalleryPreviewUrls((prev) => prev.filter((_, i) => i !== index));
+  };
+
   // Add Alien
   const handleAddAlien = async (e) => {
     e.preventDefault();
@@ -106,11 +151,15 @@ export default function AdminPanel() {
     }
     setLoading(true);
     try {
-      const created = await adminAlienService.create(newAlien, alienImageFile);
+      const created = await adminAlienService.create(newAlien, alienImageFile, galleryFiles, ultimateFile);
       setAliens((prev) => [...prev, created]);
       setNewAlien({ ...initialAlienState });
       setAlienImageFile(null);
       setAlienPreviewUrl("");
+      setGalleryFiles([]);
+      setNewGalleryPreviewUrls([]);
+      setUltimateFile(null);
+      setUltimatePreviewUrl("");
       setIsAdding(false);
       toast.success(`${created.name} added successfully!`);
     } catch (err) {
@@ -130,11 +179,15 @@ export default function AdminPanel() {
     }
     setLoading(true);
     try {
-      const updated = await adminAlienService.update(editingAlien.id, editingAlien, alienImageFile);
+      const updated = await adminAlienService.update(editingAlien.id, editingAlien, alienImageFile, galleryFiles, ultimateFile);
       setAliens((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
       setEditingAlien(null);
       setAlienImageFile(null);
       setAlienPreviewUrl("");
+      setGalleryFiles([]);
+      setNewGalleryPreviewUrls([]);
+      setUltimateFile(null);
+      setUltimatePreviewUrl("");
       toast.success(`${updated.name} updated successfully!`);
     } catch (err) {
       console.error(err);
@@ -282,7 +335,7 @@ export default function AdminPanel() {
         <button className="action-btn toggle" onClick={() => toggleAlienActive(alien)} title="Enable/Disable">
           <Power size={14} className={alien.is_active !== false ? 'active-icon' : 'inactive-icon'} />
         </button>
-        <button className="action-btn edit" onClick={() => { setEditingAlien(alien); setIsAdding(false); }}>
+        <button className="action-btn edit" onClick={() => { setEditingAlien({ ...alien, gallery: alien.gallery || [], ultimate_image_url: alien.ultimate_image_url || "" }); setIsAdding(false); }}>
           <Edit size={14} />
           <span>Edit</span>
         </button>
@@ -495,7 +548,7 @@ export default function AdminPanel() {
 
           {/* Form Panel (Right Sidebar) */}
           {activeTab !== "dashboard" && (
-            <aside className="admin-sidebar">
+            <aside className={`admin-sidebar ${isAdding || editingAlien || editingTransformation ? 'active' : ''}`}>
               <AnimatePresence mode="wait">
                 
                 {/* Form Title & Close */}
@@ -521,6 +574,10 @@ export default function AdminPanel() {
                         setTransImageFile(null);
                         setAlienPreviewUrl("");
                         setTransPreviewUrl("");
+                        setGalleryFiles([]);
+                        setNewGalleryPreviewUrls([]);
+                        setUltimateFile(null);
+                        setUltimatePreviewUrl("");
                       }}>
                         <X size={18} />
                       </button>
@@ -590,6 +647,57 @@ export default function AdminPanel() {
                         {alienPreviewUrl && (
                           <div className="image-preview">
                             <img src={alienPreviewUrl} alt="Preview" />
+                          </div>
+                        )}
+
+                        {/* Ultimate Form Image Upload Section */}
+                        <div className="image-field-section">
+                          <div className="form-group">
+                            <label>Ultimate Form Image</label>
+                            <div className="file-uploader" onClick={() => ultimateFileInputRef.current.click()}>
+                              <Upload size={18} />
+                              <span>{ultimateFile ? ultimateFile.name : "Select Ultimate Image"}</span>
+                              <input type="file" ref={ultimateFileInputRef} onChange={handleUltimateFileChange} accept="image/*" style={{ display: 'none' }} />
+                            </div>
+                          </div>
+                          <div className="form-divider">OR</div>
+                          <div className="form-group">
+                            <label>Paste Ultimate Form Image URL</label>
+                            <input type="url" value={newAlien.ultimate_image_url || ""} onChange={(e) => setNewAlien({ ...newAlien, ultimate_image_url: e.target.value })} placeholder="https://example.com/ultimate.png" disabled={!!ultimateFile} />
+                          </div>
+                        </div>
+
+                        {(ultimatePreviewUrl || newAlien.ultimate_image_url) && (
+                          <div className="image-preview">
+                            <img src={ultimatePreviewUrl || newAlien.ultimate_image_url} alt="Ultimate Preview" />
+                          </div>
+                        )}
+
+                        {/* Gallery Section */}
+                        <div className="image-field-section">
+                          <div className="form-group">
+                            <label>Upload Gallery Images</label>
+                            <div className="file-uploader" onClick={() => galleryFileInputRef.current.click()}>
+                              <Upload size={18} />
+                              <span>Select files ({galleryFiles.length} selected)</span>
+                              <input type="file" ref={galleryFileInputRef} onChange={handleGalleryFilesChange} accept="image/*" style={{ display: 'none' }} multiple />
+                            </div>
+                          </div>
+                        </div>
+
+                        {newGalleryPreviewUrls.length > 0 && (
+                          <div className="gallery-previews-container">
+                            <label style={{ fontSize: '11px', color: '#aaa' }}>Newly selected images:</label>
+                            <div className="previews-grid" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '8px' }}>
+                              {newGalleryPreviewUrls.map((url, idx) => (
+                                <div key={idx} style={{ position: 'relative', width: '60px', height: '60px' }}>
+                                  <img src={url} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '4px', border: '1px solid rgba(0, 255, 0, 0.3)' }} />
+                                  <button type="button" onClick={() => handleDeleteNewGalleryFile(idx)} style={{ position: 'absolute', top: '-4px', right: '-4px', background: '#ff4444', color: '#fff', border: 'none', borderRadius: '50%', width: '16px', height: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '9px' }}>
+                                    <X size={10} />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
                           </div>
                         )}
 
@@ -663,6 +771,74 @@ export default function AdminPanel() {
                         {(alienPreviewUrl || editingAlien.image_url) && (
                           <div className="image-preview">
                             <img src={alienPreviewUrl || editingAlien.image_url} alt="Preview" />
+                          </div>
+                        )}
+
+                        {/* Ultimate Form Image Upload Section */}
+                        <div className="image-field-section">
+                          <div className="form-group">
+                            <label>Ultimate Form Image</label>
+                            <div className="file-uploader" onClick={() => ultimateFileInputRef.current.click()}>
+                              <Upload size={18} />
+                              <span>{ultimateFile ? ultimateFile.name : "Select Ultimate Image"}</span>
+                              <input type="file" ref={ultimateFileInputRef} onChange={handleUltimateFileChange} accept="image/*" style={{ display: 'none' }} />
+                            </div>
+                          </div>
+                          <div className="form-divider">OR</div>
+                          <div className="form-group">
+                            <label>Edit Ultimate Form Image URL</label>
+                            <input type="url" value={editingAlien.ultimate_image_url || ""} onChange={(e) => setEditingAlien({ ...editingAlien, ultimate_image_url: e.target.value })} placeholder="https://example.com/ultimate.png" disabled={!!ultimateFile} />
+                          </div>
+                        </div>
+
+                        {(ultimatePreviewUrl || editingAlien.ultimate_image_url) && (
+                          <div className="image-preview">
+                            <img src={ultimatePreviewUrl || editingAlien.ultimate_image_url} alt="Ultimate Preview" />
+                          </div>
+                        )}
+
+                        {/* Gallery Section */}
+                        <div className="image-field-section">
+                          {/* List existing gallery images */}
+                          {editingAlien.gallery && editingAlien.gallery.length > 0 && (
+                            <div className="gallery-previews-container">
+                              <label style={{ fontSize: '11px', color: '#aaa' }}>Current gallery images:</label>
+                              <div className="previews-grid" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '8px', marginBottom: '12px' }}>
+                                {editingAlien.gallery.map((url) => (
+                                  <div key={url} style={{ position: 'relative', width: '60px', height: '60px' }}>
+                                    <img src={url} alt="Gallery image" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '4px', border: '1px solid rgba(255, 255, 255, 0.2)' }} />
+                                    <button type="button" onClick={() => handleDeleteGalleryImage(url)} style={{ position: 'absolute', top: '-4px', right: '-4px', background: '#ff4444', color: '#fff', border: 'none', borderRadius: '50%', width: '16px', height: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '9px' }}>
+                                      <X size={10} />
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="form-group">
+                            <label>Upload Gallery Images (Appends to existing)</label>
+                            <div className="file-uploader" onClick={() => galleryFileInputRef.current.click()}>
+                              <Upload size={18} />
+                              <span>Select files ({galleryFiles.length} selected)</span>
+                              <input type="file" ref={galleryFileInputRef} onChange={handleGalleryFilesChange} accept="image/*" style={{ display: 'none' }} multiple />
+                            </div>
+                          </div>
+                        </div>
+
+                        {newGalleryPreviewUrls.length > 0 && (
+                          <div className="gallery-previews-container">
+                            <label style={{ fontSize: '11px', color: '#aaa' }}>Newly selected images:</label>
+                            <div className="previews-grid" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '8px' }}>
+                              {newGalleryPreviewUrls.map((url, idx) => (
+                                <div key={idx} style={{ position: 'relative', width: '60px', height: '60px' }}>
+                                  <img src={url} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '4px', border: '1px solid rgba(0, 255, 0, 0.3)' }} />
+                                  <button type="button" onClick={() => handleDeleteNewGalleryFile(idx)} style={{ position: 'absolute', top: '-4px', right: '-4px', background: '#ff4444', color: '#fff', border: 'none', borderRadius: '50%', width: '16px', height: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '9px' }}>
+                                    <X size={10} />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
                           </div>
                         )}
 

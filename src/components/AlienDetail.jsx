@@ -4,12 +4,14 @@ import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
 
 function AlienDetail({ alien, onBack }) {
   const [activeImgIndex, setActiveImgIndex] = useState(0);
+  const [isUltimate, setIsUltimate] = useState(false);
   const [touchStart, setTouchStart] = useState(null);
   const [touchEnd, setTouchEnd] = useState(null);
 
   if (!alien) return null;
 
   const gallery = alien.gallery || [alien.image_url || alien.img];
+  const displayImage = isUltimate ? (alien.ultimate_image_url || alien.image_url || alien.img) : gallery[activeImgIndex];
 
   const nextImg = () => setActiveImgIndex((prev) => (prev + 1) % gallery.length);
   const prevImg = () => setActiveImgIndex((prev) => (prev - 1 + gallery.length) % gallery.length);
@@ -46,9 +48,8 @@ function AlienDetail({ alien, onBack }) {
       exit={{ opacity: 0 }}
       className="alien-detail-view"
     >
-      <button className="back-btn" onClick={onBack}>
-        <ArrowLeft size={16} />
-        <span>BACK TO SELECTOR</span>
+      <button className="back-btn" onClick={onBack} aria-label="Go back">
+        <ArrowLeft size={24} />
       </button>
       
       <div className="detail-content">
@@ -60,11 +61,11 @@ function AlienDetail({ alien, onBack }) {
         >
           <AnimatePresence mode="wait">
             <motion.img
-              key={activeImgIndex}
+              key={isUltimate ? 'ultimate' : activeImgIndex}
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
-              src={gallery[activeImgIndex]}
+              src={displayImage}
               alt={alien.name}
               className="detail-image"
             />
@@ -96,6 +97,48 @@ function AlienDetail({ alien, onBack }) {
           >
             {alien.name}
           </motion.h1>
+          
+          {alien.ultimate_image_url && (
+            <button 
+              className={`ultimate-toggle-btn ${isUltimate ? 'active' : ''}`}
+              onClick={() => setIsUltimate(!isUltimate)}
+              style={{
+                marginTop: '15px',
+                marginBottom: '15px',
+                padding: '12px 24px',
+                background: isUltimate ? 'rgba(0, 255, 0, 0.2)' : 'rgba(0, 0, 0, 0.4)',
+                border: isUltimate ? '2px solid #00ff00' : '1px solid rgba(0, 255, 0, 0.4)',
+                color: '#fff',
+                borderRadius: '50px',
+                cursor: 'pointer',
+                fontFamily: 'var(--font-heading)',
+                fontSize: '13px',
+                fontWeight: 'bold',
+                letterSpacing: '2px',
+                textTransform: 'uppercase',
+                boxShadow: isUltimate ? '0 0 20px rgba(0, 255, 0, 0.5)' : 'none',
+                transition: 'all 0.3s ease',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '10px',
+                outline: 'none'
+              }}
+            >
+              <motion.span 
+                animate={isUltimate ? { scale: [1, 1.4, 1], opacity: [0.6, 1, 0.6] } : {}}
+                transition={{ repeat: Infinity, duration: 1.5 }}
+                style={{
+                  width: '10px',
+                  height: '10px',
+                  borderRadius: '50%',
+                  background: isUltimate ? '#00ff00' : 'rgba(0, 255, 0, 0.4)',
+                  display: 'inline-block'
+                }} 
+              />
+              {isUltimate ? 'ULTIMATE FORM ACTIVE' : 'EVOLVE TO ULTIMATE'}
+            </button>
+          )}
+
           <div className="detail-divider"></div>
           <motion.p 
             initial={{ opacity: 0, y: 20 }}

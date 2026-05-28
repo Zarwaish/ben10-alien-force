@@ -92,26 +92,40 @@
 /* Responsive adjustments for mobile */
 @media (max-width: 768px) {
   .alien-image-large {
-    width: 60vw;
-    height: 60vw;
-    max-width: 250px;
-    max-height: 250px;
+    width: 48vw;
+    height: 48vw;
+    max-width: 220px;
+    max-height: 220px;
   }
   .alien-center {
-    /* Watch is max 40vw + slightly larger. Bottom offset dynamically scales. */
-    bottom: calc(40px + 45vw);
+    /* Watch size is 52vw. Position alien just above it with a premium gap of 7px. */
+    bottom: calc(42px + 52vw);
+  }
+}
+
+/* Tablet watch size cap adjustment (when watch reaches its max-width of 260px) */
+@media (min-width: 500px) and (max-width: 768px) {
+  .alien-center {
+    bottom: calc(42px + 260px);
   }
 }
 
 @media (max-width: 480px) {
   .alien-image-large {
-    width: 65vw;
-    height: 65vw;
-    max-width: 220px;
-    max-height: 220px;
+    width: 52vw;
+    height: 52vw;
+    max-width: 180px;
+    max-height: 180px;
   }
   .alien-center {
-    /* Watch is ~45vw. Bottom offset dynamically scales perfectly just above watch. */
-    bottom: calc(45px + 45vw);
+    /* Watch size is 58vw. Position alien just above it with a premium gap of 7px. */
+    bottom: calc(42px + 58vw);
+  }
+}
+
+/* Mobile watch size cap adjustment (when watch reaches its max-width of 210px) */
+@media (min-width: 362px) and (max-width: 480px) {
+  .alien-center {
+    bottom: calc(42px + 210px);
   }
 }

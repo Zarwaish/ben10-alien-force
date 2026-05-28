@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 // Runtime flags — probed once on first write
 let _hasWatchColumns = null;   // null = unknown, true/false = confirmed
 let _hasGalleryColumn = null;
+let _cachedAliens = null;
 
 async function probeColumns() {
   if (_hasWatchColumns !== null) return; // already probed
@@ -74,6 +75,9 @@ async function throwFriendly(error, op) {
 
 export const alienService = {
   async getAll() {
+    if (_cachedAliens !== null) {
+      return _cachedAliens;
+    }
     await probeColumns();
     const query = supabase.from('aliens').select('*');
     if (_hasWatchColumns) {
@@ -85,7 +89,8 @@ export const alienService = {
       console.error('[alienService.getAll]', error);
       await throwFriendly(error, 'getAll');
     }
-    return data || [];
+    _cachedAliens = data || [];
+    return _cachedAliens;
   },
 
   async fetchAliens() {
@@ -122,6 +127,7 @@ export const alienService = {
   },
 
   async create(alien) {
+    _cachedAliens = null; // Invalidate cache
     console.log('[alienService.create] Probing columns...');
     await probeColumns();
     console.log('[alienService.create] Columns probed. Building payload...');
@@ -161,6 +167,7 @@ export const alienService = {
   },
 
   async update(id, updates) {
+    _cachedAliens = null; // Invalidate cache
     await probeColumns();
     const payload = buildPayload(updates);
 
@@ -194,6 +201,7 @@ export const alienService = {
   },
 
   async delete(id) {
+    _cachedAliens = null; // Invalidate cache
     const { error } = await supabase
       .from('aliens')
       .delete()

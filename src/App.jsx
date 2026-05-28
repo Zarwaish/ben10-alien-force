@@ -22,6 +22,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 function App() {
   const [view, setView] = useState('home');
   const [selectedAlien, setSelectedAlien] = useState(null);
+  const [previousView, setPreviousView] = useState('home');
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -50,6 +51,7 @@ function App() {
   // Removed automatic view sync from URL pathname to prevent route persistence on refresh
 
   const handleTransform = (alien) => {
+    setPreviousView(view);
     setSelectedAlien(alien);
     setView('alien-detail');
   };
@@ -88,7 +90,7 @@ function App() {
       case 'login':
         return <Login setView={setView} onLoginSuccess={() => setView('home')} />;
       case 'alien-detail':
-        return <AlienDetail alien={selectedAlien} onBack={() => setView('home')} />;
+        return <AlienDetail alien={selectedAlien} onBack={() => setView(previousView)} />;
       default:
         return <Hero setView={setView} />;
     }
