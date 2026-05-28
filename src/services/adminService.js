@@ -37,89 +37,111 @@ export const adminAlienService = {
     if (error) throw error;
     return data;
   },
-  async create(alien, imageFile, galleryFiles = [], ultimateFile = null) {
-    let imageUrl = alien.image_url || null;
-    if (imageFile) {
-      imageUrl = await storageService.uploadImage(imageFile, 'alien-images');
-    }
-    
-    // Upload ultimate form image
-    let ultimateImageUrl = alien.ultimate_image_url || null;
-    if (ultimateFile) {
-      ultimateImageUrl = await storageService.uploadImage(ultimateFile, 'alien-images');
-    }
 
-    // Upload gallery files
-    const uploadedGalleryUrls = [];
-    if (galleryFiles && galleryFiles.length > 0) {
-      for (const file of galleryFiles) {
-        const url = await storageService.uploadImage(file, 'alien-images');
-        uploadedGalleryUrls.push(url);
-      }
-    }
-
-    // Base gallery array starts with the primary image_url if provided, plus any uploaded gallery files
-    const initialGallery = imageUrl ? [imageUrl] : [];
-    const gallery = [...initialGallery, ...uploadedGalleryUrls];
-
-    const payload = { 
+  /** Build a safe payload, omitting columns that may not exist yet */
+  _buildPayload(alien, imageUrl, galleryArr, ultimateImageUrl, includeNewColumns) {
+    const base = {
       name: alien.name,
       description: alien.description || '',
       power: alien.power || '',
       type: alien.type || 'Classic',
       watch_type: alien.watch_type || 'omnitrix',
       image_url: imageUrl,
-      ultimate_image_url: ultimateImageUrl,
-      gallery: gallery,
       order_index: Number(alien.order_index) || 0,
       species: alien.species || '',
-      planet: alien.planet || ''
+      planet: alien.planet || '',
     };
-    const { data, error } = await supabase.from('aliens').insert([payload]).select();
+    if (includeNewColumns) {
+      base.ultimate_image_url = ultimateImageUrl ?? null;
+      base.gallery = Array.isArray(galleryArr) ? galleryArr : [];
+    }
+    return base;
+  },
+
+  /** Returns true if the error is a missing-column schema error */
+  _isSchemaMismatch(error) {
+    return (
+      error?.code === 'PGRST204' ||
+      error?.message?.includes('gallery') ||
+      error?.message?.includes('ultimate_image_url')
+    );
+  },
+
+  async create(alien, imageFile, galleryFiles = [], ultimateFile = null) {
+    // 1. Upload primary image
+    let imageUrl = alien.image_url || null;
+    if (imageFile) {
+      imageUrl = await storageService.uploadImage(imageFile, 'alien-images');
+    }
+
+    // 2. Upload ultimate form image
+    let ultimateImageUrl = alien.ultimate_image_url || null;
+    if (ultimateFile) {
+      ultimateImageUrl = await storageService.uploadImage(ultimateFile, 'alien-images');
+    }
+
+    // 3. Upload gallery files
+    const uploadedGalleryUrls = [];
+    for (const file of (galleryFiles || [])) {
+      const url = await storageService.uploadImage(file, 'alien-images');
+      uploadedGalleryUrls.push(url);
+    }
+
+    // Build gallery: primary image + extras
+    const gallery = imageUrl ? [imageUrl, ...uploadedGalleryUrls] : [...uploadedGalleryUrls];
+
+    // 4. Try insert with all columns
+    let payload = this._buildPayload(alien, imageUrl, gallery, ultimateImageUrl, true);
+    let { data, error } = await supabase.from('aliens').insert([payload]).select();
+
+    // 5. If schema mismatch, retry without new columns
+    if (error && this._isSchemaMismatch(error)) {
+      console.warn('[adminAlienService.create] Schema mismatch — retrying without gallery/ultimate_image_url');
+      payload = this._buildPayload(alien, imageUrl, null, null, false);
+      ({ data, error } = await supabase.from('aliens').insert([payload]).select());
+    }
+
     if (error) throw error;
     return data[0];
   },
+
   async update(id, updates, imageFile, newGalleryFiles = [], ultimateFile = null) {
+    // 1. Upload primary image if changed
     let imageUrl = updates.image_url;
     if (imageFile) {
       imageUrl = await storageService.uploadImage(imageFile, 'alien-images');
     }
 
-    let ultimateImageUrl = updates.ultimate_image_url;
+    // 2. Upload ultimate image if changed
+    let ultimateImageUrl = updates.ultimate_image_url ?? null;
     if (ultimateFile) {
       ultimateImageUrl = await storageService.uploadImage(ultimateFile, 'alien-images');
     }
 
-    // Upload any new gallery files
+    // 3. Upload new gallery files and append to existing
     const uploadedGalleryUrls = [];
-    if (newGalleryFiles && newGalleryFiles.length > 0) {
-      for (const file of newGalleryFiles) {
-        const url = await storageService.uploadImage(file, 'alien-images');
-        uploadedGalleryUrls.push(url);
-      }
+    for (const file of (newGalleryFiles || [])) {
+      const url = await storageService.uploadImage(file, 'alien-images');
+      uploadedGalleryUrls.push(url);
     }
-
-    // Append new uploaded URLs to the existing gallery array
     const existingGallery = Array.isArray(updates.gallery) ? updates.gallery : [];
     const finalGallery = [...existingGallery, ...uploadedGalleryUrls];
 
-    const payload = { 
-      name: updates.name,
-      description: updates.description || '',
-      power: updates.power || '',
-      type: updates.type || 'Classic',
-      watch_type: updates.watch_type || 'omnitrix',
-      image_url: imageUrl,
-      ultimate_image_url: ultimateImageUrl,
-      gallery: finalGallery,
-      order_index: Number(updates.order_index) || 0,
-      species: updates.species || '',
-      planet: updates.planet || ''
-    };
-    const { data, error } = await supabase.from('aliens').update(payload).eq('id', id).select();
+    // 4. Try update with all columns
+    let payload = this._buildPayload(updates, imageUrl, finalGallery, ultimateImageUrl, true);
+    let { data, error } = await supabase.from('aliens').update(payload).eq('id', id).select();
+
+    // 5. If schema mismatch, retry without new columns
+    if (error && this._isSchemaMismatch(error)) {
+      console.warn('[adminAlienService.update] Schema mismatch — retrying without gallery/ultimate_image_url');
+      payload = this._buildPayload(updates, imageUrl, null, null, false);
+      ({ data, error } = await supabase.from('aliens').update(payload).eq('id', id).select());
+    }
+
     if (error) throw error;
     return data[0];
   },
+
   async delete(id) {
     const { error } = await supabase.from('aliens').delete().eq('id', id);
     if (error) throw error;

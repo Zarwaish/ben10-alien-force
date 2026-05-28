@@ -118,10 +118,7 @@ export const refreshAdminStatus = async (userId, setIsAdmin) => {
   if (!userId) { setIsAdmin(false); return; }
 
   try {
-    // Quick override to ensure admin@gmail.com is always an admin
-    const { data: userRecord } = await supabase.auth.admin?.getUserById(userId) || {};
-    
-    // Fallback: check session email since we are on client side
+    // Check session email (client-safe — no admin API needed)
     const { data: sessionData } = await supabase.auth.getSession();
     const email = sessionData?.session?.user?.email;
 
@@ -130,9 +127,10 @@ export const refreshAdminStatus = async (userId, setIsAdmin) => {
       return;
     }
   } catch (e) {
-    console.warn("Could not check email directly", e);
+    console.warn('Could not check session email', e);
   }
 
+  // Fallback: check admin_users table
   const { data, error } = await supabase
     .from('admin_users')
     .select('id')

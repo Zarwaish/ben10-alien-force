@@ -11,13 +11,16 @@
 -- -----------------------------------------------------------------------
 -- SECTION 1: aliens table — add missing columns
 -- -----------------------------------------------------------------------
-ALTER TABLE aliens ADD COLUMN IF NOT EXISTS description  TEXT;
-ALTER TABLE aliens ADD COLUMN IF NOT EXISTS power        TEXT;
-ALTER TABLE aliens ADD COLUMN IF NOT EXISTS type         TEXT    DEFAULT 'Classic';
-ALTER TABLE aliens ADD COLUMN IF NOT EXISTS image_url    TEXT;
-ALTER TABLE aliens ADD COLUMN IF NOT EXISTS gallery      JSONB   DEFAULT '[]'::jsonb;
-ALTER TABLE aliens ADD COLUMN IF NOT EXISTS watch_type   TEXT    DEFAULT 'omnitrix';
-ALTER TABLE aliens ADD COLUMN IF NOT EXISTS order_index  INTEGER DEFAULT 0;
+ALTER TABLE aliens ADD COLUMN IF NOT EXISTS description        TEXT;
+ALTER TABLE aliens ADD COLUMN IF NOT EXISTS power              TEXT;
+ALTER TABLE aliens ADD COLUMN IF NOT EXISTS type               TEXT    DEFAULT 'Classic';
+ALTER TABLE aliens ADD COLUMN IF NOT EXISTS image_url          TEXT;
+ALTER TABLE aliens ADD COLUMN IF NOT EXISTS gallery            JSONB   DEFAULT '[]'::jsonb;
+ALTER TABLE aliens ADD COLUMN IF NOT EXISTS ultimate_image_url TEXT;
+ALTER TABLE aliens ADD COLUMN IF NOT EXISTS watch_type         TEXT    DEFAULT 'omnitrix';
+ALTER TABLE aliens ADD COLUMN IF NOT EXISTS order_index        INTEGER DEFAULT 0;
+ALTER TABLE aliens ADD COLUMN IF NOT EXISTS species            TEXT;
+ALTER TABLE aliens ADD COLUMN IF NOT EXISTS planet             TEXT;
 
 
 -- -----------------------------------------------------------------------
