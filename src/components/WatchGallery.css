@@ -152,14 +152,14 @@
     margin-bottom: -50px;
   }
   .alien-image-large {
-    width: 200px;
-    height: 200px;
+    width: 215px;
+    height: 215px;
   }
   .light-omni {
-    width: 280px !important;
+    width: 310px !important;
   }
   .light-omni.active {
-    height: 180px !important;
+    height: 200px !important;
   }
 }
 
@@ -172,14 +172,14 @@
     margin-bottom: -40px;
   }
   .alien-image-large {
-    width: 165px;
-    height: 165px;
+    width: 180px;
+    height: 180px;
   }
   .light-omni {
-    width: 220px !important;
+    width: 240px !important;
   }
   .light-omni.active {
-    height: 145px !important;
+    height: 160px !important;
   }
 }
 
@@ -207,18 +207,18 @@
 
 @media (max-width: 768px) {
   .ultimatrix-view .alien-center {
-    transform: translateX(16px);
+    transform: translateX(26px);
   }
   .ultimatrix-view .light-omni {
-    transform: translateX(calc(-50% + 16px)) !important;
+    transform: translateX(calc(-50% + 26px)) !important;
   }
 }
 
 @media (max-width: 480px) {
   .ultimatrix-view .alien-center {
-    transform: translateX(12px);
+    transform: translateX(22px);
   }
   .ultimatrix-view .light-omni {
-    transform: translateX(calc(-50% + 12px)) !important;
+    transform: translateX(calc(-50% + 22px)) !important;
   }
 }
