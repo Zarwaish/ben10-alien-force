@@ -39,7 +39,7 @@ export const adminAlienService = {
   },
 
   /** Build a safe payload, omitting columns that may not exist yet */
-  _buildPayload(alien, imageUrl, galleryArr, ultimateImageUrl, includeNewColumns) {
+  _buildPayload(alien, imageUrl, galleryArr, ultimateImageUrl, ultimateGalleryArr, includeNewColumns) {
     const base = {
       name: alien.name,
       description: alien.description || '',
@@ -54,6 +54,9 @@ export const adminAlienService = {
     if (includeNewColumns) {
       base.ultimate_image_url = ultimateImageUrl ?? null;
       base.gallery = Array.isArray(galleryArr) ? galleryArr : [];
+      // Store all ultimate images as a JSON array in ultimate_gallery column
+      // (falls back gracefully if column doesn't exist — schema mismatch handler catches it)
+      base.ultimate_gallery = Array.isArray(ultimateGalleryArr) ? ultimateGalleryArr : [];
     }
     return base;
   },
@@ -63,22 +66,28 @@ export const adminAlienService = {
     return (
       error?.code === 'PGRST204' ||
       error?.message?.includes('gallery') ||
-      error?.message?.includes('ultimate_image_url')
+      error?.message?.includes('ultimate_image_url') ||
+      error?.message?.includes('ultimate_gallery')
     );
   },
 
-  async create(alien, imageFile, galleryFiles = [], ultimateFile = null) {
+  async create(alien, imageFile, galleryFiles = [], ultimateFiles = []) {
     // 1. Upload primary image
     let imageUrl = alien.image_url || null;
     if (imageFile) {
       imageUrl = await storageService.uploadImage(imageFile, 'alien-images');
     }
 
-    // 2. Upload ultimate form image
-    let ultimateImageUrl = alien.ultimate_image_url || null;
-    if (ultimateFile) {
-      ultimateImageUrl = await storageService.uploadImage(ultimateFile, 'alien-images');
+    // 2. Upload all ultimate form images
+    const ultimateFilesArr = Array.isArray(ultimateFiles) ? ultimateFiles : (ultimateFiles ? [ultimateFiles] : []);
+    const uploadedUltimateUrls = [];
+    for (const file of ultimateFilesArr) {
+      const url = await storageService.uploadImage(file, 'alien-images');
+      uploadedUltimateUrls.push(url);
     }
+    // Keep first uploaded URL as the primary ultimate_image_url for backward compat
+    const ultimateImageUrl = uploadedUltimateUrls[0] || alien.ultimate_image_url || null;
+    const ultimateGallery = uploadedUltimateUrls.length > 0 ? uploadedUltimateUrls : (alien.ultimate_image_url ? [alien.ultimate_image_url] : []);
 
     // 3. Upload gallery files
     const uploadedGalleryUrls = [];
@@ -91,13 +100,20 @@ export const adminAlienService = {
     const gallery = imageUrl ? [imageUrl, ...uploadedGalleryUrls] : [...uploadedGalleryUrls];
 
     // 4. Try insert with all columns
-    let payload = this._buildPayload(alien, imageUrl, gallery, ultimateImageUrl, true);
+    let payload = this._buildPayload(alien, imageUrl, gallery, ultimateImageUrl, ultimateGallery, true);
     let { data, error } = await supabase.from('aliens').insert([payload]).select();
 
-    // 5. If schema mismatch, retry without new columns
+    // 5. If schema mismatch on ultimate_gallery, retry without it
+    if (error && error?.message?.includes('ultimate_gallery')) {
+      console.warn('[adminAlienService.create] ultimate_gallery column missing — retrying without it');
+      delete payload.ultimate_gallery;
+      ({ data, error } = await supabase.from('aliens').insert([payload]).select());
+    }
+
+    // 6. If still schema mismatch, retry without gallery/ultimate columns
     if (error && this._isSchemaMismatch(error)) {
       console.warn('[adminAlienService.create] Schema mismatch — retrying without gallery/ultimate_image_url');
-      payload = this._buildPayload(alien, imageUrl, null, null, false);
+      payload = this._buildPayload(alien, imageUrl, null, null, null, false);
       ({ data, error } = await supabase.from('aliens').insert([payload]).select());
     }
 
@@ -105,18 +121,24 @@ export const adminAlienService = {
     return data[0];
   },
 
-  async update(id, updates, imageFile, newGalleryFiles = [], ultimateFile = null) {
+  async update(id, updates, imageFile, newGalleryFiles = [], ultimateFiles = []) {
     // 1. Upload primary image if changed
     let imageUrl = updates.image_url;
     if (imageFile) {
       imageUrl = await storageService.uploadImage(imageFile, 'alien-images');
     }
 
-    // 2. Upload ultimate image if changed
-    let ultimateImageUrl = updates.ultimate_image_url ?? null;
-    if (ultimateFile) {
-      ultimateImageUrl = await storageService.uploadImage(ultimateFile, 'alien-images');
+    // 2. Upload all new ultimate images
+    const ultimateFilesArr = Array.isArray(ultimateFiles) ? ultimateFiles : (ultimateFiles ? [ultimateFiles] : []);
+    const uploadedUltimateUrls = [];
+    for (const file of ultimateFilesArr) {
+      const url = await storageService.uploadImage(file, 'alien-images');
+      uploadedUltimateUrls.push(url);
     }
+    // Merge new ultimate uploads with existing ultimate_gallery
+    const existingUltimateGallery = Array.isArray(updates.ultimate_gallery) ? updates.ultimate_gallery : (updates.ultimate_image_url ? [updates.ultimate_image_url] : []);
+    const finalUltimateGallery = [...existingUltimateGallery, ...uploadedUltimateUrls];
+    const ultimateImageUrl = uploadedUltimateUrls[0] || updates.ultimate_image_url || null;
 
     // 3. Upload new gallery files and append to existing
     const uploadedGalleryUrls = [];
@@ -128,13 +150,20 @@ export const adminAlienService = {
     const finalGallery = [...existingGallery, ...uploadedGalleryUrls];
 
     // 4. Try update with all columns
-    let payload = this._buildPayload(updates, imageUrl, finalGallery, ultimateImageUrl, true);
+    let payload = this._buildPayload(updates, imageUrl, finalGallery, ultimateImageUrl, finalUltimateGallery, true);
     let { data, error } = await supabase.from('aliens').update(payload).eq('id', id).select();
 
-    // 5. If schema mismatch, retry without new columns
+    // 5. If schema mismatch on ultimate_gallery, retry without it
+    if (error && error?.message?.includes('ultimate_gallery')) {
+      console.warn('[adminAlienService.update] ultimate_gallery column missing — retrying without it');
+      delete payload.ultimate_gallery;
+      ({ data, error } = await supabase.from('aliens').update(payload).eq('id', id).select());
+    }
+
+    // 6. If still schema mismatch, retry without gallery/ultimate columns
     if (error && this._isSchemaMismatch(error)) {
       console.warn('[adminAlienService.update] Schema mismatch — retrying without gallery/ultimate_image_url');
-      payload = this._buildPayload(updates, imageUrl, null, null, false);
+      payload = this._buildPayload(updates, imageUrl, null, null, null, false);
       ({ data, error } = await supabase.from('aliens').update(payload).eq('id', id).select());
     }
 

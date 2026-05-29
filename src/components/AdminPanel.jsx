@@ -25,8 +25,9 @@ export default function AdminPanel() {
   // Gallery and Ultimate Form state
   const [galleryFiles, setGalleryFiles] = useState([]);
   const [newGalleryPreviewUrls, setNewGalleryPreviewUrls] = useState([]);
-  const [ultimateFile, setUltimateFile] = useState(null);
-  const [ultimatePreviewUrl, setUltimatePreviewUrl] = useState("");
+  // Multiple ultimate form images
+  const [ultimateFiles, setUltimateFiles] = useState([]);
+  const [ultimatePreviewUrls, setUltimatePreviewUrls] = useState([]);
 
   const alienFileInputRef = useRef(null);
   const transFileInputRef = useRef(null);
@@ -90,8 +91,8 @@ export default function AdminPanel() {
     setTransPreviewUrl("");
     setGalleryFiles([]);
     setNewGalleryPreviewUrls([]);
-    setUltimateFile(null);
-    setUltimatePreviewUrl("");
+    setUltimateFiles([]);
+    setUltimatePreviewUrls([]);
   }, [activeTab]);
 
   // File picker handlers
@@ -121,11 +122,19 @@ export default function AdminPanel() {
   };
 
   const handleUltimateFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setUltimateFile(file);
-      setUltimatePreviewUrl(URL.createObjectURL(file));
+    const files = Array.from(e.target.files);
+    if (files.length > 0) {
+      setUltimateFiles((prev) => [...prev, ...files]);
+      const urls = files.map((f) => URL.createObjectURL(f));
+      setUltimatePreviewUrls((prev) => [...prev, ...urls]);
     }
+    // Reset input so same file can be re-selected
+    e.target.value = '';
+  };
+
+  const handleDeleteUltimateFile = (index) => {
+    setUltimateFiles((prev) => prev.filter((_, i) => i !== index));
+    setUltimatePreviewUrls((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleDeleteGalleryImage = (urlToDelete) => {
@@ -134,6 +143,20 @@ export default function AdminPanel() {
     setEditingAlien({
       ...editingAlien,
       gallery: updatedGallery
+    });
+  };
+
+  const handleDeleteUltimateGalleryImage = (urlToDelete) => {
+    if (!editingAlien) return;
+    const updatedUltimateGallery = (editingAlien.ultimate_gallery || []).filter((u) => u !== urlToDelete);
+    let newUltimateImageUrl = editingAlien.ultimate_image_url;
+    if (editingAlien.ultimate_image_url === urlToDelete) {
+      newUltimateImageUrl = updatedUltimateGallery[0] || '';
+    }
+    setEditingAlien({
+      ...editingAlien,
+      ultimate_gallery: updatedUltimateGallery,
+      ultimate_image_url: newUltimateImageUrl
     });
   };
 
@@ -151,15 +174,15 @@ export default function AdminPanel() {
     }
     setLoading(true);
     try {
-      const created = await adminAlienService.create(newAlien, alienImageFile, galleryFiles, ultimateFile);
+      const created = await adminAlienService.create(newAlien, alienImageFile, galleryFiles, ultimateFiles);
       setAliens((prev) => [...prev, created]);
       setNewAlien({ ...initialAlienState });
       setAlienImageFile(null);
       setAlienPreviewUrl("");
       setGalleryFiles([]);
       setNewGalleryPreviewUrls([]);
-      setUltimateFile(null);
-      setUltimatePreviewUrl("");
+      setUltimateFiles([]);
+      setUltimatePreviewUrls([]);
       setIsAdding(false);
       toast.success(`${created.name} added successfully!`);
     } catch (err) {
@@ -179,15 +202,15 @@ export default function AdminPanel() {
     }
     setLoading(true);
     try {
-      const updated = await adminAlienService.update(editingAlien.id, editingAlien, alienImageFile, galleryFiles, ultimateFile);
+      const updated = await adminAlienService.update(editingAlien.id, editingAlien, alienImageFile, galleryFiles, ultimateFiles);
       setAliens((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
       setEditingAlien(null);
       setAlienImageFile(null);
       setAlienPreviewUrl("");
       setGalleryFiles([]);
       setNewGalleryPreviewUrls([]);
-      setUltimateFile(null);
-      setUltimatePreviewUrl("");
+      setUltimateFiles([]);
+      setUltimatePreviewUrls([]);
       toast.success(`${updated.name} updated successfully!`);
     } catch (err) {
       console.error(err);
@@ -335,7 +358,7 @@ export default function AdminPanel() {
         <button className="action-btn toggle" onClick={() => toggleAlienActive(alien)} title="Enable/Disable">
           <Power size={14} className={alien.is_active !== false ? 'active-icon' : 'inactive-icon'} />
         </button>
-        <button className="action-btn edit" onClick={() => { setEditingAlien({ ...alien, gallery: alien.gallery || [], ultimate_image_url: alien.ultimate_image_url || "" }); setIsAdding(false); }}>
+        <button className="action-btn edit" onClick={() => { setEditingAlien({ ...alien, gallery: alien.gallery || [], ultimate_image_url: alien.ultimate_image_url || "", ultimate_gallery: alien.ultimate_gallery || [] }); setIsAdding(false); }}>
           <Edit size={14} />
           <span>Edit</span>
         </button>
@@ -576,8 +599,8 @@ export default function AdminPanel() {
                         setTransPreviewUrl("");
                         setGalleryFiles([]);
                         setNewGalleryPreviewUrls([]);
-                        setUltimateFile(null);
-                        setUltimatePreviewUrl("");
+                        setUltimateFiles([]);
+                        setUltimatePreviewUrls([]);
                       }}>
                         <X size={18} />
                       </button>
@@ -650,26 +673,42 @@ export default function AdminPanel() {
                           </div>
                         )}
 
-                        {/* Ultimate Form Image Upload Section */}
+                        {/* Ultimate Form Multiple Images Upload Section */}
                         <div className="image-field-section">
                           <div className="form-group">
-                            <label>Ultimate Form Image</label>
+                            <label>Ultimate Form Images ({ultimateFiles.length} selected — multiple allowed)</label>
                             <div className="file-uploader" onClick={() => ultimateFileInputRef.current.click()}>
                               <Upload size={18} />
-                              <span>{ultimateFile ? ultimateFile.name : "Select Ultimate Image"}</span>
-                              <input type="file" ref={ultimateFileInputRef} onChange={handleUltimateFileChange} accept="image/*" style={{ display: 'none' }} />
+                              <span>Add Ultimate Image(s)</span>
+                              <input type="file" ref={ultimateFileInputRef} onChange={handleUltimateFileChange} accept="image/*" multiple style={{ display: 'none' }} />
                             </div>
                           </div>
                           <div className="form-divider">OR</div>
                           <div className="form-group">
                             <label>Paste Ultimate Form Image URL</label>
-                            <input type="url" value={newAlien.ultimate_image_url || ""} onChange={(e) => setNewAlien({ ...newAlien, ultimate_image_url: e.target.value })} placeholder="https://example.com/ultimate.png" disabled={!!ultimateFile} />
+                            <input type="url" value={newAlien.ultimate_image_url || ""} onChange={(e) => setNewAlien({ ...newAlien, ultimate_image_url: e.target.value })} placeholder="https://example.com/ultimate.png" disabled={ultimateFiles.length > 0} />
                           </div>
                         </div>
 
-                        {(ultimatePreviewUrl || newAlien.ultimate_image_url) && (
+                        {ultimatePreviewUrls.length > 0 && (
+                          <div className="gallery-previews-container">
+                            <label style={{ fontSize: '11px', color: '#aaa' }}>Ultimate images to upload:</label>
+                            <div className="previews-grid" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '8px' }}>
+                              {ultimatePreviewUrls.map((url, idx) => (
+                                <div key={idx} style={{ position: 'relative', width: '60px', height: '60px' }}>
+                                  <img src={url} alt="Ultimate Preview" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '4px', border: '2px solid rgba(0, 255, 0, 0.5)' }} />
+                                  <button type="button" onClick={() => handleDeleteUltimateFile(idx)} style={{ position: 'absolute', top: '-4px', right: '-4px', background: '#ff4444', color: '#fff', border: 'none', borderRadius: '50%', width: '16px', height: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '9px' }}>
+                                    <X size={10} />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {ultimatePreviewUrls.length === 0 && newAlien.ultimate_image_url && (
                           <div className="image-preview">
-                            <img src={ultimatePreviewUrl || newAlien.ultimate_image_url} alt="Ultimate Preview" />
+                            <img src={newAlien.ultimate_image_url} alt="Ultimate Preview" />
                           </div>
                         )}
 
@@ -773,27 +812,59 @@ export default function AdminPanel() {
                             <img src={alienPreviewUrl || editingAlien.image_url} alt="Preview" />
                           </div>
                         )}
+                        {/* List existing ultimate gallery images */}
+                        {editingAlien.ultimate_gallery && editingAlien.ultimate_gallery.length > 0 && (
+                          <div className="gallery-previews-container" style={{ marginBottom: '15px' }}>
+                            <label style={{ fontSize: '11px', color: '#aaa' }}>Current ultimate form images:</label>
+                            <div className="previews-grid" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '8px' }}>
+                              {editingAlien.ultimate_gallery.map((url) => (
+                                <div key={url} style={{ position: 'relative', width: '60px', height: '60px' }}>
+                                  <img src={url} alt="Ultimate image" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '4px', border: '1px solid rgba(0, 255, 0, 0.3)' }} />
+                                  <button type="button" onClick={() => handleDeleteUltimateGalleryImage(url)} style={{ position: 'absolute', top: '-4px', right: '-4px', background: '#ff4444', color: '#fff', border: 'none', borderRadius: '50%', width: '16px', height: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '9px' }}>
+                                    <X size={10} />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
 
-                        {/* Ultimate Form Image Upload Section */}
+                        {/* Ultimate Form Multiple Images Upload Section */}
                         <div className="image-field-section">
                           <div className="form-group">
-                            <label>Ultimate Form Image</label>
+                            <label>Ultimate Form Images ({ultimateFiles.length} new — multiple allowed)</label>
                             <div className="file-uploader" onClick={() => ultimateFileInputRef.current.click()}>
                               <Upload size={18} />
-                              <span>{ultimateFile ? ultimateFile.name : "Select Ultimate Image"}</span>
-                              <input type="file" ref={ultimateFileInputRef} onChange={handleUltimateFileChange} accept="image/*" style={{ display: 'none' }} />
+                              <span>Add Ultimate Image(s)</span>
+                              <input type="file" ref={ultimateFileInputRef} onChange={handleUltimateFileChange} accept="image/*" multiple style={{ display: 'none' }} />
                             </div>
                           </div>
                           <div className="form-divider">OR</div>
                           <div className="form-group">
                             <label>Edit Ultimate Form Image URL</label>
-                            <input type="url" value={editingAlien.ultimate_image_url || ""} onChange={(e) => setEditingAlien({ ...editingAlien, ultimate_image_url: e.target.value })} placeholder="https://example.com/ultimate.png" disabled={!!ultimateFile} />
+                            <input type="url" value={editingAlien.ultimate_image_url || ""} onChange={(e) => setEditingAlien({ ...editingAlien, ultimate_image_url: e.target.value })} placeholder="https://example.com/ultimate.png" disabled={ultimateFiles.length > 0} />
                           </div>
                         </div>
 
-                        {(ultimatePreviewUrl || editingAlien.ultimate_image_url) && (
+                        {ultimatePreviewUrls.length > 0 && (
+                          <div className="gallery-previews-container">
+                            <label style={{ fontSize: '11px', color: '#aaa' }}>New ultimate images to upload:</label>
+                            <div className="previews-grid" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '8px' }}>
+                              {ultimatePreviewUrls.map((url, idx) => (
+                                <div key={idx} style={{ position: 'relative', width: '60px', height: '60px' }}>
+                                  <img src={url} alt="Ultimate Preview" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '4px', border: '2px solid rgba(0, 255, 0, 0.5)' }} />
+                                  <button type="button" onClick={() => handleDeleteUltimateFile(idx)} style={{ position: 'absolute', top: '-4px', right: '-4px', background: '#ff4444', color: '#fff', border: 'none', borderRadius: '50%', width: '16px', height: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '9px' }}>
+                                    <X size={10} />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {ultimatePreviewUrls.length === 0 && editingAlien.ultimate_image_url && (
                           <div className="image-preview">
-                            <img src={ultimatePreviewUrl || editingAlien.ultimate_image_url} alt="Ultimate Preview" />
+                            <img src={editingAlien.ultimate_image_url} alt="Current Ultimate" />
                           </div>
                         )}
 

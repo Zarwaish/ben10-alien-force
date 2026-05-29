@@ -1,13 +1,11 @@
-/* WatchGallery.css - Transformation UI layout */
+/* WatchGallery.css – Transformation UI layout */
 
-/* Root container */
+/* Root container – full page, no background */
 .watch-gallery-root {
-  min-height: calc(100vh - 80px); /* account for navbar height */
-  padding-top: 100px;
-  padding-bottom: 180px;
+  min-height: calc(100vh - 80px);
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-end;
   align-items: center;
   position: relative;
   overflow: hidden;
@@ -15,19 +13,35 @@
   background-color: transparent !important;
 }
 
-/* Watch control (Omnitrix) fixed at bottom center */
-.watch-control-wrapper {
+/*
+ * Single fixed anchor that stacks alien + watch in a column.
+ * bottom: 30px keeps the watch 30px above the viewport bottom edge.
+ */
+.watch-stack {
   position: fixed;
-  bottom: 35px;
+  bottom: 30px;
   left: 50%;
   transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
   z-index: 1000;
 }
 
+/* Watch wrapper inside the stack */
+.watch-control-wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
 /*
- * Alien sits directly above the watch with no gap.
- * Desktop watch = 320px tall, bottom offset = 35px
- * So alien bottom = 35 + 320 = 355px
+ * Alien hologram container.
+ * margin-bottom: negative value pulls the alien DOWN toward the watch.
+ * PNG images have transparent padding at top, so a large negative value
+ * is needed to visually close the gap between alien feet and watch top.
  */
 .alien-center {
   display: flex;
@@ -36,10 +50,7 @@
   justify-content: flex-end;
   width: 100%;
   text-align: center;
-  position: fixed;
-  bottom: 355px;
-  left: 50%;
-  transform: translateX(-50%);
+  margin-bottom: -62px; /* Lift alien up slightly to create hover gap on desktop */
   background: transparent !important;
   background-color: transparent !important;
   box-shadow: none !important;
@@ -51,8 +62,8 @@
 }
 
 .alien-image-large {
-  width: 380px;
-  height: 380px;
+  width: 320px;    /* Desktop: matches watch width for proportional look */
+  height: 320px;
   object-fit: contain !important;
   display: block;
   margin: 0 !important;
@@ -62,14 +73,14 @@
   background: transparent !important;
   background-color: transparent !important;
   box-shadow: none !important;
-  filter: none !important;
+  filter: drop-shadow(0 0 28px rgba(0, 255, 0, 0.6)) !important;
   mix-blend-mode: normal !important;
   border: none !important;
   outline: none !important;
   cursor: pointer;
 }
 
-/* Remove any pseudo‑elements on image or container */
+/* Remove any pseudo-elements on image or container */
 .alien-image-large::before,
 .alien-image-large::after,
 .alien-center::before,
@@ -80,7 +91,7 @@
   content: none !important;
 }
 
-/* Single green inverted triangle beam behind alien */
+/* Beam element inside WatchGallery JSX — hidden, using light-omni from App.css instead */
 .alien-beam {
   display: none !important;
 }
@@ -94,65 +105,120 @@
   align-items: center;
 }
 
-/*
- * ─── Tablet (769–1024px) ───────────────────────────────────────
- * Watch: 300px (capped from 1024px breakpoint in App.css)
- * Alien bottom = 35 + 300 = 335px
- */
+/* ─────────────────────────────────────────────────────────────────────
+ * Hologram beam overrides
+ * The .light-omni element is inside .watch-controls (position: relative).
+ * bottom: 48% means it starts ~half-way up the watch image height.
+ * Watch rendered height ≈ 220px (320px wide PNG, roughly 0.7 aspect ratio).
+ * 48% of 220 ≈ 106px above watch bottom edge = beam source point.
+ * Alien image is 320px tall; with -90px margin-bottom the feet are
+ * ≈ 320 - 90 = 230px above the watch top.
+ * So beam needs to cover: 106 + 230 = 336px. Use 300px for a short but
+ * premium beam that doesn't overshoot above the alien's head.
+ * ──────────────────────────────────────────────────────────────────── */
+.light-omni {
+  width: 480px !important;   /* Slightly narrower cone for cleaner look */
+  transition: none !important;
+}
+
+.light-omni.active {
+  height: 300px !important;  /* Short, punchy beam — doesn't overshoot alien */
+  opacity: 0.80 !important;
+}
+
+/* ── Tablet (769–1024px) ─────────────────────────────── */
 @media (min-width: 769px) and (max-width: 1024px) {
   .alien-center {
-    bottom: 335px;
+    margin-bottom: -63px;
   }
   .alien-image-large {
-    width: 320px;
-    height: 320px;
+    width: 260px;
+    height: 260px;
+  }
+  .light-omni {
+    width: 380px !important;
+  }
+  .light-omni.active {
+    height: 250px !important;
   }
 }
 
-/*
- * ─── Small tablet / large phone (481–768px) ──────────────────────
- * Watch: 56vw, capped at 320px
- */
+/* ── Mobile (≤768px) ─────────────────────────────────── */
 @media (max-width: 768px) {
+  .watch-stack {
+    bottom: 20px;
+  }
+  .alien-center {
+    margin-bottom: -50px;
+  }
   .alien-image-large {
-    width: 52vw;
-    height: 52vw;
-    max-width: 260px;
-    max-height: 260px;
+    width: 200px;
+    height: 200px;
   }
-  /* vw-based: alien bottom = 35px + 56vw */
-  .alien-center {
-    bottom: calc(35px + 56vw);
+  .light-omni {
+    width: 280px !important;
   }
-}
-
-/* Cap when watch reaches its max-width of 320px (at ~571px viewport) */
-@media (min-width: 571px) and (max-width: 768px) {
-  .alien-center {
-    bottom: calc(35px + 320px);
+  .light-omni.active {
+    height: 180px !important;
   }
 }
 
-/*
- * ─── Mobile (≤480px) ─────────────────────────────────────────────
- * Watch: 64vw, capped at 260px
- */
+/* ── Small Mobile (≤480px) ───────────────────────────── */
 @media (max-width: 480px) {
-  .alien-image-large {
-    width: 58vw;
-    height: 58vw;
-    max-width: 230px;
-    max-height: 230px;
+  .watch-stack {
+    bottom: 15px;
   }
-  /* vw-based: alien bottom = 35px + 64vw */
   .alien-center {
-    bottom: calc(35px + 64vw);
+    margin-bottom: -40px;
+  }
+  .alien-image-large {
+    width: 165px;
+    height: 165px;
+  }
+  .light-omni {
+    width: 220px !important;
+  }
+  .light-omni.active {
+    height: 145px !important;
   }
 }
 
-/* Cap when watch reaches its max-width of 260px (at ~406px viewport) */
-@media (min-width: 406px) and (max-width: 480px) {
-  .alien-center {
-    bottom: calc(35px + 260px);
+/* ─────────────────────────────────────────────────────────────────────
+ * Ultimatrix Visual Alignment Adjustments
+ * Move the alien and the hologram beam slightly to the RIGHT
+ * so they align perfectly with the Ultimatrix dial center.
+ * ──────────────────────────────────────────────────────────────────── */
+.ultimatrix-view .alien-center {
+  transform: translateX(28px);
+}
+
+.ultimatrix-view .light-omni {
+  transform: translateX(calc(-50% + 28px)) !important;
+}
+
+@media (max-width: 1024px) {
+  .ultimatrix-view .alien-center {
+    transform: translateX(22px);
+  }
+  .ultimatrix-view .light-omni {
+    transform: translateX(calc(-50% + 22px)) !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .ultimatrix-view .alien-center {
+    transform: translateX(16px);
+  }
+  .ultimatrix-view .light-omni {
+    transform: translateX(calc(-50% + 16px)) !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .ultimatrix-view .alien-center {
+    transform: translateX(12px);
+  }
+  .ultimatrix-view .light-omni {
+    transform: translateX(calc(-50% + 12px)) !important;
   }
 }

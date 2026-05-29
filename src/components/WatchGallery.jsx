@@ -35,9 +35,9 @@ export default function WatchGallery({ type, onTransform }) {
 
       } catch {
 
-        const { mockAliens } = await import('../services/mockWatches');
+        const { mockWatches } = await import('../services/mockWatches');
 
-        const filtered = mockAliens.filter(
+        const filtered = mockWatches.filter(
           (a) => a.watch_type === type || a.watch_type === 'both'
         );
 
@@ -93,6 +93,25 @@ useEffect(() => {
     }
   };
 
+  const handleKeyDown = useCallback(
+    (e) => {
+      if (!active || aliens.length === 0) return;
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSelectedIdx((prev) => (prev + 1) % aliens.length);
+      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSelectedIdx((prev) => (prev - 1 + aliens.length) % aliens.length);
+      } else if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        if (aliens[selectedIdx]) {
+          onTransform(aliens[selectedIdx]);
+        }
+      }
+    },
+    [active, aliens, selectedIdx, onTransform]
+  );
+
   useEffect(() => {
     const el = containerRef.current;
 
@@ -104,6 +123,7 @@ useEffect(() => {
         handleWheel,
         { passive: false }
       );
+      window.addEventListener('keydown', handleKeyDown);
     }
 
     if (isMobile) {
@@ -125,6 +145,7 @@ useEffect(() => {
           'wheel',
           handleWheel
         );
+        window.removeEventListener('keydown', handleKeyDown);
       }
 
       if (isMobile) {
@@ -140,7 +161,7 @@ useEffect(() => {
       }
     };
 
-  }, [active, handleWheel]);
+  }, [active, handleWheel, handleKeyDown]);
 
   const toggleActive = () => {
     setActive(prev => !prev);
@@ -152,35 +173,30 @@ useEffect(() => {
 
   return (
     <div
-      className="watch-gallery-root"
+      className={`watch-gallery-root ${type === 'ultimatrix' ? 'ultimatrix-view' : ''}`}
       ref={containerRef}
     >
 
-      <AnimatePresence>
+      <div className="watch-stack">
 
         {active && selectedAlien && (
-
-          <div className="alien-center" key={selectedAlien.id}>
-
+          <div className="alien-center">
             <div className="alien-beam"/>
-
             <img src={selectedAlien.image_url} alt={selectedAlien.name} className="alien-image-large" onClick={() => onTransform(selectedAlien)} />
-
           </div>
-
         )}
 
-      </AnimatePresence>
+        <div className="watch-control-wrapper">
 
-      <div className="watch-control-wrapper">
+          <WatchControl
+            isUltimatrix={
+              type === 'ultimatrix'
+            }
+            isActive={active}
+            toggleDevice={toggleActive}
+          />
 
-        <WatchControl
-          isUltimatrix={
-            type === 'ultimatrix'
-          }
-          isActive={active}
-          toggleDevice={toggleActive}
-        />
+        </div>
 
       </div>
 
