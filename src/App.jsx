@@ -74,16 +74,12 @@ function App() {
           </RequireAdmin>
         );
       case 'omnitrix':
-        return user ? (
+        return (
           <WatchGallery type="omnitrix" onTransform={handleTransform} />
-        ) : (
-          <AuthRequired targetView="omnitrix" setView={setView} />
         );
       case 'ultimatrix':
-        return user ? (
+        return (
           <WatchGallery type="ultimatrix" onTransform={handleTransform} />
-        ) : (
-          <AuthRequired targetView="ultimatrix" setView={setView} />
         );
       case 'signup':
         return <SignUp setView={setView} />;
